@@ -289,9 +289,9 @@
         <div class="tab-content" id="tab-breakout">
             <div class="card"><h3>Breakout Probability Scanner</h3>
                 <div style="display:flex;gap:8px;margin-bottom:12px;">
-                    <button class="btn btn-blue" onclick="loadBreakout(getSymbol())">Current Stock</button>
-                    <button class="btn btn-ghost" onclick="loadBreakout('NIFTY')">NIFTY</button>
-                    <button class="btn btn-ghost" onclick="loadBreakout('BANKNIFTY')">BANKNIFTY</button>
+                    <button class="btn btn-blue" onclick="loadBreakout('NIFTY')">NIFTY</button>
+                    <button class="btn btn-blue" onclick="loadBreakout('BANKNIFTY')">BANKNIFTY</button>
+                    <button class="btn btn-blue" onclick="loadBreakout('SENSEX')">SENSEX</button>
                 </div>
                 <div id="breakoutResult"></div>
             </div>
@@ -841,20 +841,62 @@ function loadGainzAlgo(sym) {
 // USA News
 function loadUSA() {
     const el = document.getElementById('usaResult');
-    el.innerHTML = '<p style="color:#6b7280;font-size:0.8rem;">Loading USA news...</p>';
+    el.innerHTML = '<p style="color:#6b7280;font-size:0.8rem;">Loading market news...</p>';
     switchTab('usa');
     fetch('/api/usa-news').then(r=>r.json()).then(d => {
         if (d.error) { el.innerHTML = `<p class="red">${d.error}</p>`; return; }
-        const ic = d.india_market_impact==='Positive'?'green':d.india_market_impact==='Negative'?'red':'yellow';
-        let html = `<div class="row"><span class="lbl">India Impact</span><span class="val ${ic}">${d.india_market_impact}</span></div>`;
-        html += `<div class="row"><span class="lbl">US Sentiment</span><span class="val">${d.overall_sentiment} (${d.overall_score})</span></div>`;
-        html += `<p style="font-size:0.78rem;color:#9ca3af;margin:8px 0;">${d.impact_description}</p>`;
-        const cats = d.categories||{};
-        const labels = {president:'🏛️ President',federal_reserve:'🏦 Fed',trade_policy:'🌐 Trade',us_markets:'📈 Markets'};
-        for (const [k,l] of Object.entries(labels)) { const c=cats[k]; if(c) html+=`<div class="row"><span class="lbl">${l}</span><span class="val">${c.sentiment} (${c.score})</span></div>`; }
-        if (d.top_headlines?.length) { html+='<div style="margin-top:10px;">'; d.top_headlines.slice(0,5).forEach(h=>{html+=`<p style="font-size:0.72rem;color:#6b7280;padding:3px 0;">• ${h}</p>`;}); html+='</div>'; }
+
+        const impact = d.combined_impact || 'Neutral';
+        const ic = impact.includes('Positive')?'green':impact.includes('Negative')?'red':'yellow';
+        const news = d.usa_news || {};
+        const pres = d.president_news || {};
+        const markets = d.us_markets || {};
+
+        let html = '';
+        // Impact summary
+        html += `<div class="row"><span class="lbl">India Impact</span><span class="val ${ic}">${impact}</span></div>`;
+        html += `<div class="row"><span class="lbl">News Sentiment</span><span class="val">${news.overall_sentiment||'N/A'} (${news.overall_score||0})</span></div>`;
+        html += `<div class="row"><span class="lbl">Options Bias</span><span class="val">${d.options_bias||'N/A'}</span></div>`;
+        html += `<p style="font-size:0.78rem;color:#9ca3af;margin:8px 0;">${d.recommendation||''}</p>`;
+
+        // President
+        html += `<div class="row"><span class="lbl">🏛️ President</span><span class="val">${pres.sentiment||'N/A'} (${pres.score||0})</span></div>`;
+        html += `<p style="font-size:0.72rem;color:#6b7280;margin:2px 0 8px 0;">${pres.market_impact||''}</p>`;
+
+        // US Markets
+        if (markets.indices) {
+            html += '<div style="margin:8px 0;">';
+            for (const [name, data] of Object.entries(markets.indices)) {
+                if (data && data.change_pct !== undefined) {
+                    const arrow = data.change_pct > 0 ? '↑' : '↓';
+                    const clr = data.change_pct > 0 ? 'green' : 'red';
+                    html += `<div class="row"><span class="lbl">${name}</span><span class="val ${clr}">${Number(data.value).toLocaleString()} (${arrow}${data.change_pct}%)</span></div>`;
+                }
+            }
+            html += `<div class="row"><span class="lbl">US Mood</span><span class="val">${markets.us_market_mood||'N/A'}</span></div>`;
+            html += `<div class="row"><span class="lbl">Fear Level</span><span class="val">${markets.fear_index||'N/A'}</span></div>`;
+            html += '</div>';
+        }
+
+        // Categories
+        const cats = news.categories || {};
+        const labels = {president:'🏛️ President',federal_reserve:'🏦 Fed Reserve',trade_policy:'🌐 Trade Policy',us_markets:'📈 US Markets'};
+        for (const [k,l] of Object.entries(labels)) {
+            const c = cats[k];
+            if (c && c.headlines && c.headlines.length) {
+                html += `<p style="font-size:0.72rem;font-weight:600;color:#9ca3af;margin-top:10px;">${l} — ${c.sentiment}</p>`;
+                c.headlines.slice(0,2).forEach(h => { html += `<p style="font-size:0.7rem;color:#6b7280;padding:2px 0;">• ${h.headline||h}</p>`; });
+            }
+        }
+
+        // Top headlines
+        if (news.top_headlines && news.top_headlines.length) {
+            html += '<p style="font-size:0.72rem;font-weight:600;color:#9ca3af;margin-top:12px;">📰 Top Headlines</p>';
+            news.top_headlines.slice(0,5).forEach(h => { html += `<p style="font-size:0.7rem;color:#6b7280;padding:2px 0;">• ${h}</p>`; });
+        }
+
         el.innerHTML = html;
-    }).catch(()=>{ el.innerHTML='<p class="red">Failed.</p>'; });
+    }).catch(e=>{ el.innerHTML=`<p class="red">Failed to load news: ${e.message}</p>`; });
 }
 
 // Tomorrow Prediction
