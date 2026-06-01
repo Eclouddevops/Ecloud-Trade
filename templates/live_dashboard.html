@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ecloud-Trade | Index Options AI Platform</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#060612;color:#e0e0e0;font-size:13px;min-height:100vh}
+.top-header{background:linear-gradient(90deg,#0a0a1a,#12122a);border-bottom:1px solid #1e1e3a;padding:10px 20px;display:flex;align-items:center;gap:15px;position:sticky;top:0;z-index:100}
+.top-header .logo{font-size:1.4rem;font-weight:800;background:linear-gradient(90deg,#00d2ff,#7b2ff7);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.live-ind{display:flex;align-items:center;gap:5px;font-size:0.72rem;color:#ff1744}
+.live-ind .dot{width:8px;height:8px;background:#ff1744;border-radius:50%;animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.2}}
+.top-header .right{margin-left:auto;font-size:0.75rem;color:#888}
+.top-header .right .t{color:#00d2ff}
+.nav-bar{background:#0a0a1a;border-bottom:1px solid #1e1e3a;padding:8px 20px;display:flex;gap:6px;flex-wrap:wrap;position:sticky;top:52px;z-index:99}
+.nav-btn{padding:9px 18px;border-radius:6px;border:1px solid #2a2a4a;background:#0d0d20;color:#aaa;font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.2s}
+.nav-btn:hover{background:#1a1a3a;color:#fff;border-color:#00d2ff55}
+.nav-btn.active{background:linear-gradient(135deg,#00d2ff15,#7b2ff715);color:#00d2ff;border-color:#00d2ff}
+.nav-btn.hot{background:linear-gradient(135deg,#00e67610,#00e67605);color:#00e676;border-color:#00e676}
+.idx-strip{background:#08081a;padding:10px 20px;display:flex;gap:12px;overflow-x:auto;border-bottom:1px solid #1e1e3a}
+.idx-card{background:#0d0d20;border:1px solid #1e1e3a;border-radius:8px;padding:12px 20px;min-width:170px;text-align:center;flex:1}
+.idx-card .nm{font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px}
+.idx-card .vl{font-size:1.4rem;font-weight:700;color:#fff;margin:4px 0}
+.idx-card .ch{font-size:0.85rem;font-weight:600}
+.content{padding:16px 20px;max-width:1500px;margin:0 auto}
+.panel{display:none}.panel.active{display:block}
+.card{background:#0c0c1e;border:1px solid #1e1e3a;border-radius:10px;padding:16px;margin-bottom:14px}
+.card h3{color:#00d2ff;font-size:0.95rem;font-weight:700;margin-bottom:12px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.up{color:#00e676}.down{color:#ff5252}.flat{color:#ffd740}.muted{color:#555}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:8px 6px;color:#666;font-size:0.7rem;border-bottom:1px solid #1e1e3a;text-transform:uppercase}
+td{padding:8px 6px;border-bottom:1px solid #12122a;font-size:0.82rem}
+.sig{padding:3px 9px;border-radius:4px;font-size:0.7rem;font-weight:700;display:inline-block}
+.sig-buy{background:rgba(0,230,118,0.15);color:#00e676}.sig-sell{background:rgba(255,82,82,0.15);color:#ff5252}.sig-hold{background:rgba(255,215,64,0.12);color:#ffd740}
+.rec-card{background:#0d0d20;border:2px solid #1e1e3a;border-radius:12px;padding:20px;text-align:center}
+.rec-card .idx{font-size:1.1rem;font-weight:700;color:#fff}
+.rec-card .price{font-size:0.9rem;color:#888;margin:4px 0}
+.rec-card .big{font-size:2.2rem;font-weight:900;margin:8px 0}
+.rec-card .big.CE{color:#00e676}.rec-card .big.PE{color:#ff5252}.rec-card .big.WAIT{color:#ffd740}
+.rec-card .meta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-top:10px;font-size:0.72rem}
+.rec-card .meta .m{background:#08081a;padding:6px;border-radius:4px;text-align:center}
+.rec-card .meta .m .l{color:#666;font-size:0.62rem}.rec-card .meta .m .v{font-weight:700;margin-top:2px}
+.rec-card .reasons{margin-top:10px;text-align:left;font-size:0.7rem;color:#777;max-height:90px;overflow-y:auto;line-height:1.6}
+.bp-bar{height:8px;background:#1a1a2e;border-radius:4px;overflow:hidden;margin-top:3px}
+.bp-fill{height:100%;border-radius:4px}.bp-fill.high{background:linear-gradient(90deg,#00d2ff,#7b2ff7)}.bp-fill.med{background:#ffd740}.bp-fill.low{background:#444}
+.footer{text-align:center;padding:20px;color:#333;font-size:0.7rem;border-top:1px solid #1e1e3a;margin-top:20px}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#060612}::-webkit-scrollbar-thumb{background:#2a2a4a;border-radius:3px}
+</style>
+</head>
+<body>
+<div class="top-header">
+<span class="logo">Ecloud-Trade</span>
+<div class="live-ind"><span class="dot"></span>LIVE</div>
+<div style="color:#888;font-size:0.78rem">SENSEX / NIFTY / BANKNIFTY Options Analysis</div>
+<div class="right"><span class="t" id="updT">Connecting...</span></div>
+</div>
+<div class="nav-bar" id="nav"></div>
+<div class="idx-strip" id="idxStrip"></div>
+<div class="content" id="main"></div>
+<div class="footer">Ecloud-Trade | Bloomberg-Style AI Analysis | Not financial advice | Auto-refresh 60s</div>
+<script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+<script>
+var D={},AP='dashboard';
+var TABS=[
+{id:'dashboard',label:'📊 Dashboard'},
+{id:'bestpick',label:'🏆 Best Trade Today',hot:true},
+{id:'recommend',label:'🎯 CE/PE Recommendation'},
+{id:'intraday',label:'⚡ Intraday Entry/Exit'},
+{id:'chart',label:'📈 Live Charts'},
+{id:'patterns',label:'🕯️ Candlestick Patterns'},
+{id:'pivots',label:'🎯 Pivot Analysis'},
+{id:'breakout',label:'🚀 Breakout Probability'},
+{id:'news',label:'📰 News & Impact'},
+{id:'bloomberg',label:'🖥️ Bloomberg Terminal'},
+{id:'alerts',label:'📢 Alerts'},
+];
+function buildNav(){var h='';TABS.forEach(function(t){h+='<button class="nav-btn'+(t.id===AP?' active':'')+(t.hot?' hot':'')+'" onclick="go(\''+t.id+'\')">'+t.label+'</button>';});document.getElementById('nav').innerHTML=h;}
+function go(id){AP=id;buildNav();render();}
+function load(){fetch('/api/live').then(r=>r.json()).then(d=>{D=d;document.getElementById('updT').textContent=(d.last_updated||'...')+' #'+d.update_count;buildStrip();render();}).catch(e=>console.error(e));}
+function buildStrip(){var m=D.market||{},ix=m.indices||{},h='';
+[['NIFTY_50','NIFTY 50'],['SENSEX','SENSEX'],['NIFTY_BANK','BANK NIFTY']].forEach(function(p){var x=ix[p[0]]||{};var c=x.change_pct||0;var cls=c>0?'up':c<0?'down':'flat';
+h+='<div class="idx-card"><div class="nm">'+p[1]+'</div><div class="vl">'+(x.value||0).toLocaleString()+'</div><div class="ch '+cls+'">'+(c>0?'+':'')+c+'%</div></div>';});
+document.getElementById('idxStrip').innerHTML=h;}
+function sb(sig){if(!sig)return'<span class="sig sig-hold">HOLD</span>';var s=sig.toUpperCase();if(s.indexOf('STRONG BUY')>=0||s.indexOf('BUY CE')>=0)return'<span class="sig sig-buy" style="border:1px solid #00e676">'+sig+'</span>';if(s.indexOf('BUY')>=0)return'<span class="sig sig-buy">'+sig+'</span>';if(s.indexOf('STRONG SELL')>=0||s.indexOf('BUY PE')>=0)return'<span class="sig sig-sell" style="border:1px solid #ff5252">'+sig+'</span>';if(s.indexOf('SELL')>=0)return'<span class="sig sig-sell">'+sig+'</span>';return'<span class="sig sig-hold">'+sig+'</span>';}
+function render(){var h='';
+if(AP==='dashboard')h=pDash();
+else if(AP==='bestpick')h=pBestPick();
+else if(AP==='recommend')h=pRec();
+else if(AP==='intraday')h=pIntra();
+else if(AP==='chart')h=pChart();
+else if(AP==='patterns')h=pPat();
+else if(AP==='pivots')h=pPiv();
+else if(AP==='breakout')h=pBP();
+else if(AP==='news')h=pNews();
+else if(AP==='bloomberg')h=pBloom();
+else if(AP==='alerts')h=pAlerts();
+document.getElementById('main').innerHTML=h;
+// Auto-render chart if on chart tab
+if(AP==='chart')setTimeout(function(){renderChart('mainChart','^NSEI');},100);
+}
+</script>
+<script>
+/* ═══ DASHBOARD ═══ */
+function pDash(){
+var opts=D.options||[],alerts=D.alerts||[],pats=D.patterns_scanner||[];
+var h='';
+// Main Recommendations
+h+='<div class="card"><h3>🎯 Today\'s Option Trading Recommendation</h3><div class="g3">';
+opts.forEach(function(o){if(o.error)return;var r=o.recommendation||{};var side=r.side||'WAIT';var cls=side==='CE'?'up':side==='PE'?'down':'flat';
+h+='<div style="background:#0d0d20;border:2px solid '+(side==='CE'?'#00e67644':side==='PE'?'#ff525244':'#ffd74033')+';border-radius:10px;padding:16px;text-align:center">';
+h+='<div style="font-weight:700;font-size:1rem">'+o.index+'</div>';
+h+='<div style="color:#888;font-size:0.85rem">&#8377; '+o.current_price+'</div>';
+h+='<div class="'+cls+'" style="font-size:2rem;font-weight:900;margin:8px 0">'+r.action+'</div>';
+h+='<div style="font-size:0.78rem;color:#aaa">Strike: <b>'+r.suggested_strike+'</b> | Conf: <b>'+r.confidence+'</b></div>';
+h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-top:8px;font-size:0.72rem">';
+h+='<div style="background:#08081a;padding:5px;border-radius:3px"><div style="color:#666">Target</div><div class="up" style="font-weight:700">'+r.target_level+'</div></div>';
+h+='<div style="background:#08081a;padding:5px;border-radius:3px"><div style="color:#666">Stop Loss</div><div class="down" style="font-weight:700">'+r.stoploss_level+'</div></div>';
+h+='<div style="background:#08081a;padding:5px;border-radius:3px"><div style="color:#666">R:R</div><div style="font-weight:700">'+r.risk_reward+'</div></div>';
+h+='</div></div>';});
+h+='</div><div style="text-align:center;margin-top:10px"><button class="nav-btn hot" onclick="go(\'recommend\')" style="padding:10px 30px;font-size:0.9rem">View Detailed Analysis →</button></div></div>';
+// Bottom: Patterns + Alerts
+h+='<div class="g2">';
+h+='<div class="card"><h3>🕯️ Pattern Alerts</h3>';
+if(pats.length){pats.slice(0,5).forEach(function(p){h+='<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #12122a;font-size:0.82rem"><span><b>'+p.symbol+'</b> '+p.pattern+'</span>'+sb(p.signal)+'</div>';});}
+else h+='<p class="muted">No patterns detected today</p>';
+h+='</div>';
+h+='<div class="card"><h3>📢 Live Alerts</h3><div style="max-height:140px;overflow-y:auto">';
+if(alerts.length){for(var i=alerts.length-1;i>=Math.max(0,alerts.length-8);i--)h+='<div style="padding:3px 0;font-size:0.75rem;color:#aaa;border-bottom:1px solid #0d0d1a">⚡ '+alerts[i]+'</div>';}
+else h+='<p class="muted">No alerts</p>';
+h+='</div></div></div>';
+return h;
+}
+
+/* ═══ BEST TRADE TODAY ═══ */
+function pBestPick(){
+var sp=D.smart_picks||{},rankings=sp.rankings||[],best=sp.best_trade;
+var h='';
+if(!best)return'<div class="card"><p class="muted">Smart picks loading... wait for first data cycle.</p></div>';
+var sideCls=best.side==='CE'?'up':best.side==='PE'?'down':'flat';
+h+='<div class="card" style="border:2px solid '+(best.side==='CE'?'#00e67655':'#ff525255')+'">';
+h+='<h3>🏆 Best Trade Today <span style="font-size:0.62rem;background:rgba(0,210,255,0.1);color:#00d2ff;padding:2px 8px;border-radius:10px">AI RANKED</span></h3>';
+h+='<div class="g2"><div style="text-align:center;padding:16px">';
+h+='<div style="color:#888;font-size:0.8rem">Index</div><div style="font-size:1.6rem;font-weight:800;color:#fff">'+best.index+'</div>';
+h+='<div class="'+sideCls+'" style="font-size:2.2rem;font-weight:900;margin:8px 0">BUY '+best.side+'</div>';
+h+='<div style="font-size:1.1rem;font-weight:700;color:#fff">'+(best.strikes&&best.strikes.moderate?best.strikes.moderate.strike:'')+' '+best.side+'</div>';
+h+='<div style="margin-top:8px;color:#888;font-size:0.82rem">Premium: '+(best.strikes&&best.strikes.moderate?best.strikes.moderate.premium_range:'—')+'</div>';
+h+='<div style="margin-top:4px;color:#00d2ff;font-size:1.1rem;font-weight:700">Confidence: '+best.confidence+'</div>';
+h+='</div><div style="display:grid;gap:6px">';
+h+='<div style="background:#0d0d20;padding:10px;border-radius:6px"><div style="color:#666;font-size:0.68rem">EXPECTED POINTS</div><div class="'+sideCls+'" style="font-size:1.4rem;font-weight:800">+'+best.expected_points+' pts</div></div>';
+h+='<div style="background:#0d0d20;padding:10px;border-radius:6px"><div style="color:#666;font-size:0.68rem">EXPECTED OPTION GAIN</div><div class="up" style="font-size:1.2rem;font-weight:700">+'+best.expected_option_gain_pct+'%</div></div>';
+h+='<div style="background:#0d0d20;padding:10px;border-radius:6px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;text-align:center"><div><div style="color:#666;font-size:0.62rem">ENTRY</div><div style="font-weight:700">'+best.entry+'</div></div><div><div style="color:#666;font-size:0.62rem">SL</div><div class="down" style="font-weight:700">'+best.stop_loss+'</div></div><div><div style="color:#666;font-size:0.62rem">EXIT</div><div class="up" style="font-weight:700">'+best.exit+'</div></div></div>';
+h+='<div style="background:#0d0d20;padding:8px;border-radius:6px;font-size:0.72rem">';
+(best.reasons||[]).forEach(function(r){h+='<div style="color:#bbb;padding:1px 0">✓ '+r+'</div>';});
+h+='</div></div></div></div>';
+// Strike recommendations
+if(best.strikes&&Object.keys(best.strikes).length){
+h+='<div class="card"><h3>Which Strike? (Premium Filter)</h3><div class="g3">';
+['conservative','moderate','aggressive'].forEach(function(lv){var s=best.strikes[lv];if(!s)return;
+var lbl=lv==='conservative'?'🛡️ Conservative':lv==='moderate'?'⚖️ Moderate':'🔥 Aggressive';
+h+='<div style="background:#0d0d20;border:1px solid #1e1e3a;border-radius:8px;padding:14px"><div style="font-weight:700;font-size:0.82rem;margin-bottom:6px">'+lbl+'</div>';
+h+='<div style="font-size:1.2rem;font-weight:800;color:#fff">'+s.strike+' '+s.type.split(" ")[1]+'</div>';
+h+='<table style="font-size:0.75rem;margin-top:6px"><tr><td style="color:#888">Premium</td><td style="color:#ffd740">'+s.premium_range+'</td></tr><tr><td style="color:#888">Risk</td><td>'+s.risk+'</td></tr><tr><td style="color:#888">Expected</td><td class="up">'+s.expected_gain+'</td></tr></table></div>';});
+h+='</div></div>';}
+// Rankings table
+h+='<div class="card"><h3>Smart Ranking — Compare All</h3><table><thead><tr><th>#</th><th>Index</th><th>Signal</th><th>Score</th><th>Exp Pts</th><th>Gain%</th><th>Entry</th><th>SL</th><th>Exit</th></tr></thead><tbody>';
+rankings.forEach(function(r,i){var cls=r.side==='CE'?'up':r.side==='PE'?'down':'flat';
+h+='<tr><td style="color:#00d2ff;font-weight:700">#'+(i+1)+'</td><td><b>'+r.index+'</b></td><td class="'+cls+'" style="font-weight:800">'+r.action+'</td><td>'+r.score+'/100</td><td class="up">+'+r.expected_points+'</td><td class="up">+'+r.expected_option_gain_pct+'%</td><td>'+r.entry+'</td><td class="down">'+r.stop_loss+'</td><td class="up">'+r.exit+'</td></tr>';});
+h+='</tbody></table></div>';
+// Chart
+h+='<div class="card"><h3>Chart</h3><div style="margin-bottom:8px">';
+[['%5ENSEI','NIFTY'],['%5EBSESN','SENSEX'],['%5ENSEBANK','BANKNIFTY']].forEach(function(c){h+='<button onclick="renderChart(\'bpkCh\',\''+c[0]+'\')" style="padding:6px 12px;margin:2px;background:#0d0d20;border:1px solid #2a2a4a;border-radius:5px;color:#ccc;cursor:pointer;font-size:0.75rem">'+c[1]+'</button>';});
+h+=' ';h+=chartPeriodBtns('bpkCh','%5ENSEI');
+h+='</div><div id="bpkCh" style="width:100%;height:320px;background:#0c0c1e;border-radius:8px;border:1px solid #1e1e3a"></div></div>';
+return h;
+}
+
+/* ═══ CE/PE RECOMMENDATION ═══ */
+function pRec(){
+var opts=D.options||[];
+var h='<div class="card"><h3>🎯 CE / PE Trading Recommendation <span style="font-size:0.65rem;background:rgba(0,210,255,0.1);color:#00d2ff;padding:2px 8px;border-radius:10px;margin-left:6px">AI POWERED</span></h3>';
+h+='<p style="color:#888;margin-bottom:14px">Real-time analysis for NIFTY, BANKNIFTY, SENSEX. Entry, stop loss, targets based on RSI, MACD, EMA, VWAP, ADX, Stochastic, Pivot levels.</p>';
+// Chart buttons
+h+='<div style="margin-bottom:6px"><b style="color:#aaa;font-size:0.8rem">Live Chart:</b> ';
+[['%5ENSEI','NIFTY 50'],['%5EBSESN','SENSEX'],['%5ENSEBANK','BANK NIFTY']].forEach(function(c){
+h+='<button onclick="renderChart(\'recCh\',\''+c[0]+'\')" style="padding:6px 14px;margin:3px;background:#0d0d20;border:1px solid #2a2a4a;border-radius:6px;color:#ccc;cursor:pointer;font-size:0.78rem;font-weight:600">'+c[1]+'</button>';});
+h+='</div>';
+h+='<div style="margin-bottom:10px"><b style="color:#aaa;font-size:0.75rem">Period:</b> ';
+h+=chartPeriodBtns('recCh','%5ENSEI');
+h+='</div><div id="recCh" style="width:100%;height:300px;background:#0c0c1e;border-radius:8px;border:1px solid #1e1e3a;margin-bottom:16px"></div>';
+// Recommendation cards
+h+='<div class="g3">';
+opts.forEach(function(o){if(o.error){h+='<div class="rec-card"><div class="idx">'+o.index+'</div><p class="down" style="margin-top:10px">'+o.error+'</p></div>';return;}
+var r=o.recommendation||{},ind=o.indicators||{},side=r.side||'WAIT';
+h+='<div class="rec-card" style="border-color:'+(side==='CE'?'#00e67644':side==='PE'?'#ff525244':'#ffd74033')+'">';
+h+='<div class="idx">'+o.index+'</div><div class="price">&#8377; '+o.current_price+'</div>';
+h+='<div class="big '+side+'">'+r.action+'</div>';
+h+='<div style="font-size:0.8rem;color:#aaa">Confidence: <b>'+r.confidence+'</b> | Score: '+r.score+'/12</div>';
+h+='<div class="meta">';
+h+='<div class="m"><div class="l">STRIKE</div><div class="v">'+r.suggested_strike+'</div></div>';
+h+='<div class="m"><div class="l">TARGET</div><div class="v up">'+r.target_level+'</div></div>';
+h+='<div class="m"><div class="l">STOP LOSS</div><div class="v down">'+r.stoploss_level+'</div></div>';
+h+='<div class="m"><div class="l">EXP MOVE</div><div class="v">±'+r.expected_move+'</div></div>';
+h+='<div class="m"><div class="l">RISK:REWARD</div><div class="v">'+r.risk_reward+'</div></div>';
+h+='<div class="m"><div class="l">SIZE</div><div class="v">'+r.position_sizing+'</div></div>';
+h+='</div>';
+// Indicators
+h+='<div class="meta" style="margin-top:4px">';
+h+='<div class="m"><div class="l">RSI</div><div class="v">'+ind.rsi+'</div></div>';
+h+='<div class="m"><div class="l">MACD</div><div class="v">'+ind.macd_crossover+'</div></div>';
+h+='<div class="m"><div class="l">EMA</div><div class="v">'+ind.ema_trend+'</div></div>';
+h+='<div class="m"><div class="l">VWAP</div><div class="v">'+ind.price_vs_vwap+'</div></div>';
+h+='<div class="m"><div class="l">ADX</div><div class="v">'+ind.adx+'</div></div>';
+h+='<div class="m"><div class="l">STOCH</div><div class="v">'+ind.stochastic_signal+'</div></div>';
+h+='</div>';
+var reasons=r.reasons||[];if(reasons.length){h+='<div class="reasons">';reasons.forEach(function(x){h+='▸ '+x+'<br>';});h+='</div>';}
+h+='</div>';});
+h+='</div></div>';return h;
+}
+
+/* ═══ INTRADAY ENTRY/EXIT ═══ */
+function pIntra(){
+var sigs=D.intraday_signals||[],opts=D.options||[];
+var h='<div class="card"><h3>⚡ Intraday Entry & Exit - Option Trading</h3>';
+h+='<p style="color:#888;margin-bottom:14px">Exact entry, stop loss, and 3 targets for today\'s trading session.</p>';
+if(!sigs.length&&opts.length){
+// Generate from options data
+h+='<div class="g3">';
+opts.forEach(function(o){if(o.error)return;var r=o.recommendation||{};var side=r.side||'WAIT';var cls=side==='CE'?'CE':side==='PE'?'PE':'WAIT';
+h+='<div class="rec-card" style="border-color:'+(cls==='CE'?'#00e67633':cls==='PE'?'#ff525233':'#ffd74033')+'">';
+h+='<div class="idx">'+o.index+'</div>';
+h+='<div class="big '+cls+'">'+(side==='CE'?'BUY CE ':side==='PE'?'BUY PE ':'WAIT ')+r.suggested_strike+'</div>';
+h+='<div style="font-size:0.82rem;color:#aaa">Confidence: '+r.confidence+'</div>';
+h+='<div class="meta">';
+h+='<div class="m"><div class="l">ENTRY</div><div class="v">Above '+o.current_price+'</div></div>';
+h+='<div class="m"><div class="l">STOP LOSS</div><div class="v down">'+r.stoploss_level+'</div></div>';
+h+='<div class="m"><div class="l">TARGET 1</div><div class="v up">'+r.target_level+'</div></div>';
+var t2=side==='CE'?Math.round(r.target_level*1.005):Math.round(r.target_level*0.995);
+var t3=side==='CE'?Math.round(r.target_level*1.01):Math.round(r.target_level*0.99);
+h+='<div class="m"><div class="l">TARGET 2</div><div class="v up">'+t2+'</div></div>';
+h+='<div class="m"><div class="l">TARGET 3</div><div class="v up">'+t3+'</div></div>';
+h+='<div class="m"><div class="l">R:R</div><div class="v">'+r.risk_reward+'</div></div>';
+h+='</div>';
+h+='<div style="margin-top:8px;font-size:0.72rem;color:#888;text-align:left"><b>Exit Strategy:</b> Book 50% at T1, 30% at T2, trail rest to T3. Exit fully if SL hit.</div>';
+h+='</div>';});
+h+='</div>';}
+else if(sigs.length){h+='<div class="g3">';
+sigs.forEach(function(s){var cls=s.option_side==='CE'?'CE':s.option_side==='PE'?'PE':'WAIT';
+h+='<div class="rec-card" style="border-color:'+(cls==='CE'?'#00e67633':cls==='PE'?'#ff525233':'#ffd74033')+'">';
+h+='<div class="idx">'+s.symbol+'</div>';
+h+='<div class="big '+cls+'">'+s.direction+' '+s.option_side+' '+s.strike+'</div>';
+h+='<div style="font-size:0.82rem;color:#aaa">Confidence: '+s.confidence+'% | R:R '+s.risk_reward+'</div>';
+h+='<div class="meta"><div class="m"><div class="l">ENTRY</div><div class="v">'+s.entry+'</div></div><div class="m"><div class="l">SL</div><div class="v down">'+s.stop_loss+'</div></div><div class="m"><div class="l">T1</div><div class="v up">'+s.target_1+'</div></div><div class="m"><div class="l">T2</div><div class="v up">'+s.target_2+'</div></div><div class="m"><div class="l">T3</div><div class="v up">'+s.target_3+'</div></div><div class="m"><div class="l">SCORE</div><div class="v">'+s.score+'</div></div></div>';
+h+='</div>';});h+='</div>';}
+else h+='<p class="muted">Intraday signals loading...</p>';
+h+='</div>';return h;
+}
+
+/* ═══ LIVE CHARTS ═══ */
+function pChart(){
+var h='<div class="card"><h3>📈 AI-Powered Live Charts — BUY CE / BUY PE / EXIT / SL / Targets</h3>';
+h+='<p style="color:#888;margin-bottom:10px;font-size:0.8rem">Multi-indicator scoring: EMA Cross + MACD + RSI + ADX + Volume + Bollinger + Stochastic → Generates entry, exit, stop loss & 3 targets directly on chart.</p>';
+h+='<div style="margin-bottom:8px"><b style="color:#aaa;font-size:0.8rem">Index:</b> ';
+[['%5ENSEI','NIFTY 50'],['%5EBSESN','SENSEX'],['%5ENSEBANK','BANK NIFTY']].forEach(function(c){
+h+='<button onclick="renderChart(\'mainChart\',\''+c[0]+'\')" style="padding:8px 18px;margin:3px;background:#0d0d20;border:1px solid #2a2a4a;border-radius:6px;color:#ccc;cursor:pointer;font-size:0.85rem;font-weight:600">'+c[1]+'</button>';});
+h+='</div>';
+h+='<div style="margin-bottom:12px"><b style="color:#aaa;font-size:0.8rem">Period:</b> ';
+h+=chartPeriodBtns('mainChart','%5ENSEI');
+h+='</div>';
+h+='<div id="mainChart" style="width:100%;height:450px;background:#0c0c1e;border-radius:8px;border:1px solid #1e1e3a"></div>';
+h+='<div style="margin-top:12px;padding:10px;background:#0d0d20;border-radius:6px;font-size:0.75rem;color:#aaa">';
+h+='<b>Signal Legend:</b><br>';
+h+='<span class="up">▲ BUY CE</span> — Bullish entry (EMA cross up + MACD + RSI + ADX + Volume) &nbsp;|&nbsp; ';
+h+='<span style="color:#00ff88">▲ STRONG CE</span> — High confidence bullish<br>';
+h+='<span class="down">▼ BUY PE</span> — Bearish entry (EMA cross down + MACD + RSI + ADX + Volume) &nbsp;|&nbsp; ';
+h+='<span style="color:#ff1744">▼ STRONG PE</span> — High confidence bearish<br>';
+h+='<span style="color:#ff9100">● EXIT</span> — Close position (SL hit or reversal) &nbsp;|&nbsp; ';
+h+='<span style="color:#00bcd4">● EXIT T3</span> — Full target achieved<br>';
+h+='<span class="down">── STOP LOSS</span> (red dashed) &nbsp;|&nbsp; <span class="up">── TARGET 1/2/3</span> (green dashed) — ATR-based levels';
+h+='</div></div>';
+return h;
+}
+</script>
+<script>
+/* ═══ PATTERNS ═══ */
+function pPat(){
+var pats=D.patterns_scanner||[];
+var h='<div class="card"><h3>🕯️ Candlestick Pattern Scanner</h3>';
+h+='<div style="margin-bottom:12px">';
+[['%5ENSEI','NIFTY'],['%5EBSESN','SENSEX'],['%5ENSEBANK','BANKNIFTY']].forEach(function(c){
+h+='<button onclick="renderChart(\'patCh\',\''+c[0]+'\')" style="padding:6px 14px;margin:3px;background:#0d0d20;border:1px solid #2a2a4a;border-radius:6px;color:#ccc;cursor:pointer;font-size:0.78rem">'+c[1]+' Chart</button>';});
+h+='</div><div id="patCh" style="width:100%;height:280px;background:#0c0c1e;border-radius:8px;border:1px solid #1e1e3a;margin-bottom:14px"></div>';
+if(pats.length){h+='<table><thead><tr><th>Stock</th><th>Pattern</th><th>Signal</th><th>Type</th><th>Confidence</th><th>Meaning</th></tr></thead><tbody>';
+pats.forEach(function(p){h+='<tr><td><b>'+p.symbol+'</b></td><td>'+p.pattern+'</td><td>'+sb(p.signal)+'</td><td>'+p.type+'</td><td>'+p.confidence+'%</td><td style="font-size:0.72rem;color:#888">'+(p.description||'')+'</td></tr>';});
+h+='</tbody></table>';}else h+='<p class="muted">No patterns detected on current candles.</p>';
+h+='</div>';
+// Pattern Guide
+h+='<div class="card"><h3>Pattern Guide - What Each Pattern Means</h3><div class="g2" style="font-size:0.82rem">';
+[['🔨 Hammer','BUY','Small body + long lower wick after downtrend → Market REVERSAL UP'],
+['⭐ Shooting Star','SELL','Small body + long upper shadow after uptrend → Market goes DOWN'],
+['📈 Three White Soldiers','STRONG BUY','3 consecutive bullish candles closing higher → Market goes UP'],
+['📉 Three Black Crows','STRONG SELL','3 consecutive bearish candles closing lower → Market goes DOWN'],
+['🟢 Green Marubozu','BUY','Large green candle appearing in red candles → Buyers taking control, UP'],
+['🔴 Red Marubozu','SELL','Large red candle appearing in green candles → Sellers taking control, DOWN'],
+['✅ Bullish Engulfing','BUY','Red candles then green candle engulfs previous red → Reversal UP'],
+['❌ Bearish Engulfing','SELL','Green candles then red candle engulfs previous green → Reversal DOWN']
+].forEach(function(g){h+='<div style="padding:8px;border-bottom:1px solid #1e1e3a"><b>'+g[0]+'</b> '+sb(g[1])+'<br><span style="color:#999">'+g[2]+'</span></div>';});
+h+='</div></div>';return h;
+}
+
+/* ═══ PIVOTS ═══ */
+function pPiv(){
+var pivots=D.pivot_data||[],opts=D.options||[];
+var h='<div class="card"><h3>🎯 Pivot Point Analysis</h3>';
+// Use options data for index pivots
+if(opts.length){
+opts.forEach(function(o){if(o.error)return;var lv=o.levels||{};
+h+='<div style="background:#0d0d20;border:1px solid #1e1e3a;border-radius:8px;padding:14px;margin-bottom:10px"><div class="g2"><div>';
+h+='<div style="font-weight:700;font-size:1rem;margin-bottom:8px">'+o.index+' <span style="color:#888;font-size:0.85rem">&#8377;'+o.current_price+'</span></div>';
+h+='<table><thead><tr><th>Level</th><th>Price</th></tr></thead><tbody>';
+h+='<tr><td>R2</td><td class="up"><b>'+(lv.resistance_2||'-')+'</b></td></tr>';
+h+='<tr><td>R1</td><td class="up">'+(lv.resistance_1||'-')+'</td></tr>';
+h+='<tr><td style="color:#00d2ff"><b>PIVOT</b></td><td style="color:#00d2ff"><b>'+(lv.pivot||'-')+'</b></td></tr>';
+h+='<tr><td>S1</td><td class="down">'+(lv.support_1||'-')+'</td></tr>';
+h+='<tr><td>S2</td><td class="down">'+(lv.support_2||'-')+'</td></tr>';
+h+='</tbody></table></div>';
+h+='<div style="font-size:0.8rem"><b>Trading Rule:</b><br><br>';
+h+='<div style="color:#00e676;padding:3px 0">▸ Price > Pivot + RSI > 50 + MACD Bullish = <b>BUY CE</b></div>';
+h+='<div style="color:#ff5252;padding:3px 0">▸ Price < Pivot + RSI < 50 + MACD Bearish = <b>BUY PE</b></div>';
+h+='<br><b>Current:</b> Price '+(o.current_price>lv.pivot?'<span class="up">ABOVE</span>':'<span class="down">BELOW</span>')+' Pivot';
+h+='</div></div></div>';});}
+// Stock pivots
+if(pivots.length){pivots.forEach(function(p){var c=p.classic||{};var sig=p.signal||{};
+h+='<div style="background:#0d0d20;border:1px solid #1e1e3a;border-radius:8px;padding:14px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center"><span><b>'+p.symbol+'</b> &#8377;'+p.price+'</span>'+sb(sig.signal)+'</div>';
+h+='<div style="display:flex;gap:12px;margin-top:6px;font-size:0.75rem;color:#888">';
+h+='<span>R2: <span class="up">'+c.r2+'</span></span><span>R1: <span class="up">'+c.r1+'</span></span><span style="color:#00d2ff">P: '+c.pivot+'</span><span>S1: <span class="down">'+c.s1+'</span></span><span>S2: <span class="down">'+c.s2+'</span></span>';
+h+='</div></div>';});}
+h+='</div>';return h;
+}
+
+/* ═══ BREAKOUT ═══ */
+function pBP(){
+var stks=D.stocks||[];
+var h='<div class="card"><h3>🚀 Breakout Probability [Expo]</h3>';
+h+='<div style="margin-bottom:12px">';
+[['%5ENSEI','NIFTY'],['%5EBSESN','SENSEX'],['%5ENSEBANK','BANKNIFTY']].forEach(function(c){
+h+='<button onclick="renderChart(\'bpCh\',\''+c[0]+'\')" style="padding:6px 14px;margin:3px;background:#0d0d20;border:1px solid #2a2a4a;border-radius:6px;color:#ccc;cursor:pointer;font-size:0.78rem">'+c[1]+' Chart</button>';});
+h+='</div><div id="bpCh" style="width:100%;height:280px;background:#0c0c1e;border-radius:8px;border:1px solid #1e1e3a;margin-bottom:14px"></div>';
+h+='<table><thead><tr><th>Stock</th><th>Price</th><th>Breakout %</th><th>Direction</th><th>Signal</th><th>Squeeze</th><th>Volume</th><th>Compression</th></tr></thead><tbody>';
+stks.forEach(function(s){if(s.error||!s.breakout)return;var bp=s.breakout;
+var bCls=bp.breakout_probability>70?'high':bp.breakout_probability>50?'med':'low';
+var dCls=bp.direction_bias>60?'up':bp.direction_bias<40?'down':'flat';
+h+='<tr><td><b>'+s.symbol+'</b></td><td>&#8377;'+s.price+'</td>';
+h+='<td><b>'+bp.breakout_probability+'%</b><div class="bp-bar"><div class="bp-fill '+bCls+'" style="width:'+bp.breakout_probability+'%"></div></div></td>';
+h+='<td class="'+dCls+'">'+bp.direction_bias+'% Bull</td>';
+h+='<td>'+sb(bp.signal==='BREAKOUT UP'?'BUY':bp.signal==='BREAKDOWN'?'SELL':'HOLD')+'</td>';
+h+='<td>'+bp.factors.squeeze_score+'</td><td>'+bp.factors.volume_score+'</td><td>'+bp.factors.compression_score+'</td></tr>';});
+h+='</tbody></table></div>';return h;
+}
+
+/* ═══ NEWS ═══ */
+function pNews(){
+var h='<div class="card"><h3>📰 Market News & Impact Analysis</h3><div id="newsBox"><p class="muted">Loading news...</p></div></div>';
+setTimeout(function(){fetch('/api/news').then(r=>r.json()).then(d=>{var nh='';
+if(d.overall){nh+='<div style="padding:10px;background:#0d0d20;border-radius:6px;margin-bottom:12px;font-size:0.85rem"><b>Market Sentiment:</b> <span class="'+(d.overall.impact==='Bullish'?'up':'down')+'"><b>'+d.overall.impact+'</b></span> | Score: '+d.overall.impact_score+'/10 | Positive: '+d.overall.positive_pct+'% | Negative: '+d.overall.negative_pct+'%</div>';}
+[['market_news','📈 Market News'],['government_news','🏛️ RBI / Government Policy'],['international_news','🌎 International Impact']].forEach(function(sec){
+var items=d[sec[0]]||[];if(!items.length)return;
+nh+='<div style="margin-top:12px;font-weight:700;color:#00d2ff;font-size:0.85rem">'+sec[1]+'</div>';
+items.forEach(function(n){var ic=n.impact==='Bullish'?'up':n.impact==='Bearish'?'down':'muted';
+nh+='<div style="padding:5px 0;border-bottom:1px solid #12122a;font-size:0.8rem"><span class="'+ic+'" style="font-size:0.68rem;padding:1px 5px;background:rgba(255,255,255,0.03);border-radius:3px">['+n.impact+']</span> '+n.headline+'</div>';});});
+document.getElementById('newsBox').innerHTML=nh||'<p class="muted">No news available</p>';}).catch(e=>{document.getElementById('newsBox').innerHTML='<p class="down">Failed to load</p>';});},50);
+return h;
+}
+
+/* ═══ BLOOMBERG TERMINAL ═══ */
+function pBloom(){
+var opts=D.options||[],stks=D.stocks||[],m=D.market||{},g=D.global_markets||{};
+var h='<div class="card"><h3>🖥️ Bloomberg Terminal View</h3>';
+// Market Monitor
+h+='<div class="g3" style="margin-bottom:12px">';
+var ix=m.indices||{};
+[['NIFTY_50','NIFTY 50'],['SENSEX','SENSEX'],['NIFTY_BANK','BANK NIFTY'],['NIFTY_IT','NIFTY IT']].forEach(function(p){var x=ix[p[0]]||{};var c=x.change_pct||0;
+h+='<div style="background:#0d0d20;padding:10px;border-radius:6px;text-align:center"><div style="color:#777;font-size:0.68rem">'+p[1]+'</div><div style="font-size:1.2rem;font-weight:700;color:#fff">'+(x.value||0).toLocaleString()+'</div><div class="'+(c>0?'up':'down')+'" style="font-size:0.8rem">'+(c>0?'+':'')+c+'%</div></div>';});
+h+='</div>';
+// Global
+var gIdx=g.indices||{};
+h+='<div style="margin-bottom:12px"><b style="color:#aaa;font-size:0.8rem">Global Markets:</b></div><div class="g3" style="margin-bottom:12px">';
+['DOW_JONES','NASDAQ','SP500','NIKKEI','HANG_SENG'].forEach(function(k){var x=gIdx[k]||{};if(!x.value)return;var c=x.change_pct||0;
+h+='<div style="background:#0d0d20;padding:8px;border-radius:6px;text-align:center;font-size:0.8rem"><div style="color:#777;font-size:0.65rem">'+k.replace(/_/g,' ')+'</div><div style="font-weight:700;color:#fff">'+(x.value||0).toLocaleString()+'</div><div class="'+(c>0?'up':'down')+'">'+(c>0?'+':'')+c+'%</div></div>';});
+h+='</div>';
+// Commodities + Forex
+var gCom=g.commodities||{},gFx=g.forex||{};
+h+='<div class="g2"><div><b style="color:#aaa;font-size:0.78rem">Commodities</b><table>';
+for(var k in gCom){var x=gCom[k];h+='<tr><td>'+k.replace(/_/g,' ')+'</td><td style="font-weight:700">'+(x.value||0).toLocaleString()+'</td><td class="'+(x.change_pct>0?'up':'down')+'">'+(x.change_pct>0?'+':'')+(x.change_pct||0)+'%</td></tr>';}
+h+='</table></div><div><b style="color:#aaa;font-size:0.78rem">Forex</b><table>';
+for(var k in gFx){var x=gFx[k];h+='<tr><td>'+k.replace(/_/g,' ')+'</td><td style="font-weight:700">'+(x.value||0).toLocaleString()+'</td><td class="'+(x.change_pct>0?'up':'down')+'">'+(x.change_pct>0?'+':'')+(x.change_pct||0)+'%</td></tr>';}
+h+='</table></div></div>';
+// Options Summary
+h+='<div style="margin-top:12px"><b style="color:#aaa;font-size:0.78rem">Options Signals:</b></div><table><thead><tr><th>Index</th><th>Price</th><th>Signal</th><th>Strike</th><th>Target</th><th>SL</th><th>Confidence</th></tr></thead><tbody>';
+opts.forEach(function(o){if(o.error)return;var r=o.recommendation||{};
+h+='<tr><td><b>'+o.index+'</b></td><td>'+o.current_price+'</td><td>'+sb(r.action)+'</td><td>'+r.suggested_strike+'</td><td class="up">'+r.target_level+'</td><td class="down">'+r.stoploss_level+'</td><td>'+r.confidence+'</td></tr>';});
+h+='</tbody></table></div>';return h;
+}
+
+/* ═══ ALERTS ═══ */
+function pAlerts(){
+var alerts=D.alerts||[];
+var h='<div class="card"><h3>📢 Live Alerts ('+alerts.length+')</h3>';
+if(!alerts.length)h+='<p class="muted">No alerts generated yet.</p>';
+else{h+='<div style="max-height:500px;overflow-y:auto">';for(var i=alerts.length-1;i>=0;i--)h+='<div style="padding:6px 0;border-bottom:1px solid #12122a;font-size:0.82rem">⚡ '+alerts[i]+'</div>';h+='</div>';}
+h+='</div>';return h;
+}
+
+/* ═══ CHART RENDERER WITH BUY/SELL/EXIT + SL/TARGET LINES ═══ */
+var currentChartSymbol={};
+function renderChart(id,sym,period){
+period=period||'6mo';
+currentChartSymbol[id]=sym;
+var el=document.getElementById(id);if(!el||!window.LightweightCharts)return;
+el.innerHTML='<p style="color:#00d2ff;text-align:center;padding:20px">Loading chart with AI signals...</p>';
+var chart=LightweightCharts.createChart(el,{width:el.clientWidth,height:el.clientHeight||300,
+layout:{background:{color:'#0c0c1e'},textColor:'#999'},
+grid:{vertLines:{color:'#1a1a2e'},horzLines:{color:'#1a1a2e'}},
+crosshair:{mode:0},timeScale:{borderColor:'#1a1a2e'},rightPriceScale:{borderColor:'#1a1a2e'}});
+var cs=chart.addCandlestickSeries({upColor:'#00e676',downColor:'#ff5252',borderUpColor:'#00e676',borderDownColor:'#ff5252',wickUpColor:'#00e676',wickDownColor:'#ff5252'});
+fetch('/api/chart/'+sym+'?period='+period).then(r=>r.json()).then(data=>{
+if(data.error){el.innerHTML='<p class="down" style="padding:20px">'+data.error+'</p>';return;}
+var candles=data.candles||data;
+var markers=data.markers||[];
+var lines=data.lines||[];
+var position=data.position||'NONE';
+cs.setData(candles);
+if(markers.length){cs.setMarkers(markers);}
+// Draw SL and Target price lines
+lines.forEach(function(ln){
+cs.createPriceLine({price:ln.price,color:ln.color,lineWidth:1,lineStyle:2,axisLabelVisible:true,title:ln.label});
+});
+chart.timeScale().fitContent();
+// Show position status below chart
+var statusEl=document.createElement('div');
+statusEl.style.cssText='text-align:center;padding:6px;font-size:0.8rem;margin-top:4px';
+if(position==='CE')statusEl.innerHTML='<span class="up" style="font-weight:700">● Active Position: BUY CE</span> — Lines show Stop Loss & Targets';
+else if(position==='PE')statusEl.innerHTML='<span class="down" style="font-weight:700">● Active Position: BUY PE</span> — Lines show Stop Loss & Targets';
+else statusEl.innerHTML='<span class="muted">No active position — Waiting for next signal</span>';
+el.parentNode.insertBefore(statusEl,el.nextSibling);
+}).catch(e=>{el.innerHTML='<p class="down" style="padding:20px">Chart failed: '+e+'</p>';});
+}
+
+function chartPeriodBtns(chartId,sym){
+var periods=[['5d','1D'],['1mo','5D'],['3mo','1M'],['6mo','3M'],['1y','6M'],['2y','1Y']];
+var h='';
+periods.forEach(function(p){
+h+='<button onclick="renderChart(\''+chartId+'\',\''+(sym||'%5ENSEI')+'\',\''+p[0]+'\')" style="padding:5px 12px;margin:2px;background:#0d0d20;border:1px solid #2a2a4a;border-radius:4px;color:#ccc;cursor:pointer;font-size:0.73rem;font-weight:600">'+p[1]+'</button>';});
+return h;
+}
+
+buildNav();load();setInterval(load,60000);
+</script>
+</body>
+</html>

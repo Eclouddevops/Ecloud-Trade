@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ecloud-Trade | AI Trading Terminal</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #0b0f19; color: #e2e8f0; height: 100vh; overflow: hidden; }
+
+        .app { display: grid; grid-template-columns: 200px 1fr 360px; grid-template-rows: 48px 1fr; height: 100vh; }
+
+        /* Top Bar */
+        .topbar { grid-column: 1/-1; background: #111827; border-bottom: 1px solid #1f2937; display: flex; align-items: center; padding: 0 16px; gap: 12px; }
+        .topbar .logo { font-weight: 700; font-size: 1rem; background: linear-gradient(135deg,#60a5fa,#a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .topbar .sep { width: 1px; height: 24px; background: #374151; }
+        .topbar select, .topbar input { padding: 6px 12px; border-radius: 6px; border: 1px solid #374151; background: #1f2937; color: #e2e8f0; font-size: 0.8rem; font-family: inherit; }
+        .topbar select:focus, .topbar input:focus { outline: none; border-color: #60a5fa; }
+        .btn { padding: 6px 14px; border-radius: 6px; border: none; font-size: 0.78rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+        .btn-blue { background: #3b82f6; color: #fff; }
+        .btn-blue:hover { background: #2563eb; }
+        .btn-blue:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-red { background: #ef4444; color: #fff; }
+        .btn-ghost { background: transparent; color: #9ca3af; border: 1px solid #374151; }
+        .btn-ghost:hover { background: #1f2937; color: #fff; }
+
+        /* Sidebar */
+        .sidebar { background: #111827; border-right: 1px solid #1f2937; padding: 12px 0; overflow-y: auto; }
+        .sidebar-item { display: flex; align-items: center; gap: 8px; padding: 9px 16px; font-size: 0.76rem; color: #9ca3af; cursor: pointer; transition: all 0.1s; border-left: 3px solid transparent; }
+        .sidebar-item:hover { background: #1f2937; color: #e2e8f0; }
+        .sidebar-item.active { background: rgba(59,130,246,0.1); color: #60a5fa; border-left-color: #3b82f6; }
+        .sidebar-item .icon { font-size: 1rem; width: 20px; text-align: center; }
+        .sidebar-section { padding: 8px 16px 4px; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; color: #4b5563; font-weight: 600; margin-top: 8px; }
+
+        /* Main */
+        .main { overflow-y: auto; padding: 16px; scrollbar-width: thin; scrollbar-color: #1f2937 transparent; }
+        .main::-webkit-scrollbar { width: 6px; }
+        .main::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 3px; }
+
+        /* Tab content */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Cards */
+        .card { background: #111827; border: 1px solid #1f2937; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+        .card h3 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.4px; color: #6b7280; margin-bottom: 10px; font-weight: 600; }
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+        /* Signal Banner */
+        .signal-banner { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-radius: 10px; margin-bottom: 12px; }
+        .signal-banner.buy { background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2); }
+        .signal-banner.sell { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); }
+        .signal-banner.hold { background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.2); }
+        .signal-banner .left h2 { font-size: 1.2rem; font-weight: 700; }
+        .signal-banner .left p { font-size: 0.78rem; color: #9ca3af; margin-top: 2px; }
+        .signal-banner .right { text-align: right; }
+        .signal-banner .right .rec { font-size: 1.4rem; font-weight: 700; }
+        .rec.buy { color: #22c55e; } .rec.sell { color: #ef4444; } .rec.hold { color: #eab308; }
+
+        /* Metrics */
+        .row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid #1f2937; font-size: 0.8rem; }
+        .row:last-child { border-bottom: none; }
+        .row .lbl { color: #6b7280; }
+        .row .val { font-weight: 600; }
+        .green { color: #22c55e; } .red { color: #ef4444; } .yellow { color: #eab308; } .blue { color: #60a5fa; }
+
+        /* Prediction bars */
+        .pred { margin-bottom: 8px; }
+        .pred-hdr { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 3px; }
+        .pred-bar { height: 5px; background: #1f2937; border-radius: 3px; overflow: hidden; }
+        .pred-fill { height: 100%; border-radius: 3px; }
+
+        /* Chart */
+        .chart-box { width: 100%; height: 350px; }
+
+        /* Pattern cards */
+        .pattern-card { background: #1a2332; border: 1px solid #1f2937; border-radius: 8px; padding: 12px; }
+        .pattern-card .name { font-weight: 600; font-size: 0.85rem; margin-bottom: 4px; }
+        .pattern-card .desc { font-size: 0.73rem; color: #9ca3af; line-height: 1.4; }
+        .pattern-card .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.68rem; font-weight: 600; margin-top: 6px; }
+        .badge-buy { background: rgba(34,197,94,0.15); color: #4ade80; }
+        .badge-sell { background: rgba(239,68,68,0.15); color: #f87171; }
+        .badge-hold { background: rgba(234,179,8,0.15); color: #fbbf24; }
+
+        /* Best trade */
+        .best-trade { background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.08)); border: 1px solid rgba(59,130,246,0.2); border-radius: 10px; padding: 20px; margin-bottom: 12px; }
+        .best-trade .trophy { font-size: 1.5rem; }
+        .best-trade h2 { font-size: 1.1rem; margin: 4px 0; }
+        /* Loading */
+        .loading { display: none; text-align: center; padding: 40px; }
+        .loading.active { display: block; }
+        .spinner { width: 30px; height: 30px; border: 3px solid #1f2937; border-top-color: #60a5fa; border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 10px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Chat Panel */
+        .chat-panel { background: #111827; border-left: 1px solid #1f2937; display: flex; flex-direction: column; position: relative; }
+        .chat-hdr { padding: 12px 16px; border-bottom: 1px solid #1f2937; font-size: 0.82rem; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: move; user-select: none; }
+        .chat-hdr .dot { width: 7px; height: 7px; background: #22c55e; border-radius: 50%; }
+        .chat-hdr .drag-hint { margin-left: auto; font-size: 0.65rem; color: #4b5563; font-weight: 400; }
+        .quick-btns { padding: 8px 12px; display: flex; gap: 5px; flex-wrap: wrap; border-bottom: 1px solid #1f2937; }
+        .qbtn { padding: 3px 8px; border-radius: 10px; border: 1px solid #374151; background: transparent; color: #9ca3af; font-size: 0.67rem; cursor: pointer; font-family: inherit; }
+        .qbtn:hover { background: #1f2937; color: #e2e8f0; }
+        .chat-msgs { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin; scrollbar-color: #374151 #111827; }
+        .chat-msgs::-webkit-scrollbar { width: 8px; }
+        .chat-msgs::-webkit-scrollbar-track { background: #111827; border-radius: 4px; }
+        .chat-msgs::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; border: 2px solid #111827; }
+        .chat-msgs::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+        .cmsg { max-width: 90%; padding: 9px 12px; border-radius: 10px; font-size: 0.78rem; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
+        .cmsg.bot { align-self: flex-start; background: #1f2937; color: #d1d5db; }
+        .cmsg.user { align-self: flex-end; background: #3b82f6; color: #fff; }
+        .cmsg .b { color: #60a5fa; font-weight: 600; }
+        .typing { align-self: flex-start; padding: 9px 12px; background: #1f2937; border-radius: 10px; display: none; }
+        .typing span { display: inline-block; width: 5px; height: 5px; background: #60a5fa; border-radius: 50%; margin: 0 2px; animation: bounce 1s infinite; }
+        .typing span:nth-child(2) { animation-delay: 0.15s; }
+        .typing span:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes bounce { 0%,60%,100%{transform:translateY(0);opacity:0.3} 30%{transform:translateY(-3px);opacity:1} }
+        .chat-input { padding: 10px 12px; border-top: 1px solid #1f2937; display: flex; gap: 6px; }
+        .chat-input input { flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid #374151; background: #1f2937; color: #e2e8f0; font-size: 0.78rem; font-family: inherit; outline: none; }
+        .chat-input input:focus { border-color: #60a5fa; }
+        .chat-input button { padding: 8px 12px; border-radius: 6px; border: none; background: #3b82f6; color: #fff; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+        .chat-input button:disabled { opacity: 0.3; }
+        .chat-scroll-btns { position: absolute; right: 16px; bottom: 60px; display: flex; flex-direction: column; gap: 4px; z-index: 10; }
+        .chat-scroll-btn { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #374151; background: #1f2937; color: #9ca3af; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.7rem; transition: all 0.15s; }
+        .chat-scroll-btn:hover { background: #374151; color: #e2e8f0; }
+
+        /* Floating/Detached Chat Mode */
+        .chat-panel.floating {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            width: 380px;
+            height: 520px;
+            border-radius: 12px;
+            border: 1px solid #1f2937;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+            z-index: 9999;
+            resize: both;
+            overflow: hidden;
+            min-width: 300px;
+            min-height: 350px;
+        }
+        .chat-panel.floating .chat-hdr { border-radius: 12px 12px 0 0; }
+        .chat-panel.hidden { display: none; }
+        .chat-reattach-btn { display: none; position: fixed; bottom: 20px; right: 20px; z-index: 9998; width: 50px; height: 50px; border-radius: 50%; background: #3b82f6; border: none; color: #fff; font-size: 1.2rem; cursor: pointer; box-shadow: 0 4px 20px rgba(59,130,246,0.4); }
+        .chat-reattach-btn.visible { display: flex; align-items: center; justify-content: center; }
+
+        .error-msg { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); border-radius: 8px; padding: 10px 14px; color: #f87171; font-size: 0.8rem; display: none; margin-bottom: 12px; }
+
+        @media (max-width: 1024px) { .app { grid-template-columns: 1fr; grid-template-rows: 48px auto 1fr 300px; } .sidebar { display: none; } }
+    </style>
+</head>
+<body>
+<div class="app">
+    <!-- Top Bar -->
+    <div class="topbar">
+        <span class="logo">Ecloud-Trade</span>
+        <div class="sep"></div>
+        <select id="stockSelect">
+            <option value="">Select Stock</option>
+            {% for stock in stocks %}<option value="{{ stock }}">{{ stock }}</option>{% endfor %}
+            <option value="NIFTY">NIFTY 50</option>
+            <option value="BANKNIFTY">BANKNIFTY</option>
+            <option value="SENSEX">SENSEX</option>
+        </select>
+        <input type="text" id="customStock" placeholder="Symbol..." style="width:100px;">
+        <button class="btn btn-blue" id="analyzeBtn" onclick="runAnalysis()">Analyze</button>
+        <button class="btn btn-red" onclick="loadBestTrade()">🏆 Best Trade</button>
+        <button class="btn btn-ghost" onclick="loadUSA()">📰 News</button>
+    </div>
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="sidebar-section">Analysis</div>
+        <div class="sidebar-item active" onclick="switchTab('overview')"><span class="icon">📊</span>Overview</div>
+        <div class="sidebar-item" onclick="switchTab('chart')"><span class="icon">📈</span>Chart</div>
+        <div class="sidebar-item" onclick="switchTab('technical')"><span class="icon">🔧</span>Technical</div>
+        <div class="sidebar-section">Trading</div>
+        <div class="sidebar-item" onclick="switchTab('options')"><span class="icon">🎯</span>Options Signals</div>
+        <div class="sidebar-item" onclick="switchTab('intraday')"><span class="icon">⚡</span>Intraday</div>
+        <div class="sidebar-item" onclick="switchTab('candlestick')"><span class="icon">🕯️</span>Candlestick</div>
+        <div class="sidebar-item" onclick="switchTab('breakout')"><span class="icon">🚀</span>Breakout</div>
+        <div class="sidebar-item" onclick="switchTab('gainzalgo')"><span class="icon">🧠</span>GainzAlgo V2</div>
+        <div class="sidebar-section">Intelligence</div>
+        <div class="sidebar-item" onclick="switchTab('usa')"><span class="icon">📰</span>News</div>
+        <div class="sidebar-item" onclick="switchTab('prediction')"><span class="icon">🤖</span>AI Prediction</div>
+        <div class="sidebar-item" onclick="switchTab('best')"><span class="icon">🏆</span>Best Trade</div>
+        <div class="sidebar-item" onclick="switchTab('livetrade')" style="border-left-color:#22c55e;"><span class="icon">🔥</span>Live Trade</div>
+        <div class="sidebar-section">Smart AI</div>
+        <div class="sidebar-item" onclick="switchTab('tomorrow')"><span class="icon">🔮</span>Tomorrow</div>
+        <div class="sidebar-item" onclick="switchTab('smarttrade')"><span class="icon">💎</span>Smart Trade</div>
+        <div class="sidebar-item" onclick="switchTab('sentiment')"><span class="icon">🌡️</span>Sentiment</div>
+    </nav>
+    <!-- Main Content -->
+    <main class="main">
+        <div class="loading" id="loading"><div class="spinner"></div><p style="color:#6b7280;font-size:0.8rem;">Analyzing...</p></div>
+        <div class="error-msg" id="errorMsg"></div>
+
+        <!-- Overview Tab -->
+        <div class="tab-content active" id="tab-overview">
+            <div id="signalBanner" class="signal-banner hold" style="display:none;">
+                <div class="left"><h2 id="stockName">-</h2><p id="priceText">Select a stock to begin</p></div>
+                <div class="right"><div class="rec hold" id="rec">-</div><p style="font-size:0.75rem;color:#9ca3af;" id="trendText"></p></div>
+            </div>
+            <div class="card-grid" id="overviewGrid" style="display:none;">
+                <div class="card"><h3>Trading Levels</h3>
+                    <div class="row"><span class="lbl">Entry</span><span class="val" id="entry">-</span></div>
+                    <div class="row"><span class="lbl">Stop Loss</span><span class="val red" id="sl">-</span></div>
+                    <div class="row"><span class="lbl">Target</span><span class="val green" id="tgt">-</span></div>
+                    <div class="row"><span class="lbl">Risk</span><span class="val" id="risk">-</span></div>
+                </div>
+                <div class="card"><h3>ML Predictions</h3><div id="preds"></div></div>
+                <div class="card"><h3>Support & Resistance</h3>
+                    <div class="row"><span class="lbl">R2</span><span class="val red" id="r2">-</span></div>
+                    <div class="row"><span class="lbl">R1</span><span class="val red" id="r1">-</span></div>
+                    <div class="row"><span class="lbl">Pivot</span><span class="val yellow" id="pvt">-</span></div>
+                    <div class="row"><span class="lbl">S1</span><span class="val green" id="s1">-</span></div>
+                    <div class="row"><span class="lbl">S2</span><span class="val green" id="s2">-</span></div>
+                </div>
+                <div class="card"><h3>News & Sentiment</h3>
+                    <div class="row"><span class="lbl">Sentiment</span><span class="val" id="sent">-</span></div>
+                    <div class="row"><span class="lbl">Market Mood</span><span class="val" id="mood">-</span></div>
+                    <div class="row"><span class="lbl">NIFTY Trend</span><span class="val" id="nifty">-</span></div>
+                    <div id="hl" style="margin-top:8px;"></div>
+                </div>
+            </div>
+            <div class="card" id="reasonCard" style="display:none;"><h3>Reasoning</h3><p id="reason" style="font-size:0.8rem;color:#9ca3af;line-height:1.6;"></p></div>
+        </div>
+
+        <!-- Chart Tab -->
+        <div class="tab-content" id="tab-chart">
+            <div class="card"><h3>Price Chart — Support & Resistance</h3><div class="chart-box" id="priceChart"></div></div>
+        </div>
+
+        <!-- Technical Tab -->
+        <div class="tab-content" id="tab-technical">
+            <div class="card-grid" id="techGrid"></div>
+        </div>
+        <!-- Options Tab -->
+        <div class="tab-content" id="tab-options">
+            <div class="card"><h3>Options Trading Signals — NIFTY / BANKNIFTY / SENSEX</h3>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button class="btn btn-blue" onclick="loadOptions('NIFTY')">NIFTY</button>
+                    <button class="btn btn-blue" onclick="loadOptions('BANKNIFTY')">BANKNIFTY</button>
+                    <button class="btn btn-blue" onclick="loadOptions('SENSEX')">SENSEX</button>
+                </div>
+                <div id="optionsResult"></div>
+            </div>
+        </div>
+
+        <!-- Intraday Tab -->
+        <div class="tab-content" id="tab-intraday">
+            <div class="card"><h3>Intraday Trading Signals</h3>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button class="btn btn-blue" onclick="loadIntraday('NIFTY')">NIFTY</button>
+                    <button class="btn btn-blue" onclick="loadIntraday('BANKNIFTY')">BANKNIFTY</button>
+                    <button class="btn btn-blue" onclick="loadIntraday('SENSEX')">SENSEX</button>
+                    <button class="btn btn-ghost" onclick="loadIntraday(getSymbol())">Current Stock</button>
+                </div>
+                <div id="intradayResult"></div>
+            </div>
+        </div>
+
+        <!-- Candlestick Tab -->
+        <div class="tab-content" id="tab-candlestick">
+            <div class="card"><h3>Candlestick Pattern Scanner</h3>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button class="btn btn-blue" onclick="loadCandles(getSymbol())">Scan Current</button>
+                    <button class="btn btn-ghost" onclick="loadCandles('NIFTY')">NIFTY</button>
+                    <button class="btn btn-ghost" onclick="loadCandles('BANKNIFTY')">BANKNIFTY</button>
+                    <button class="btn btn-ghost" onclick="loadCandles('SENSEX')">SENSEX</button>
+                </div>
+                <div id="candleResult"></div>
+            </div>
+            <div class="card"><h3>Pattern Reference</h3>
+                <div class="card-grid">
+                    <div class="pattern-card"><div class="name">🔨 Hammer</div><div class="desc">Small body, long lower wick after downtrend. Market reversal upward.</div><span class="badge badge-buy">BUY Signal</span></div>
+                    <div class="pattern-card"><div class="name">⭐ Shooting Star</div><div class="desc">Small body, long upper shadow after uptrend. Market goes down.</div><span class="badge badge-sell">SELL Signal</span></div>
+                    <div class="pattern-card"><div class="name">💪 Three White Soldiers</div><div class="desc">Three consecutive bullish candles closing higher. Strong uptrend.</div><span class="badge badge-buy">STRONG BUY</span></div>
+                    <div class="pattern-card"><div class="name">🐦‍⬛ Three Black Crows</div><div class="desc">Three consecutive bearish candles closing lower. Market goes down.</div><span class="badge badge-sell">STRONG SELL</span></div>
+                    <div class="pattern-card"><div class="name">🟢 Green Marubozu</div><div class="desc">Large green candle in red trend = buyers taking control. Market goes up.</div><span class="badge badge-buy">BUY Signal</span></div>
+                    <div class="pattern-card"><div class="name">🔴 Red Marubozu</div><div class="desc">Large red candle in green trend = sellers taking control. Market goes down.</div><span class="badge badge-sell">SELL Signal</span></div>
+                    <div class="pattern-card"><div class="name">🟩 Bullish Engulfing</div><div class="desc">Green candle engulfs previous red candle with follow-up green. Reversal up.</div><span class="badge badge-buy">BUY Signal</span></div>
+                    <div class="pattern-card"><div class="name">🟥 Bearish Engulfing</div><div class="desc">Red candle engulfs previous green candle. Reversal downward.</div><span class="badge badge-sell">SELL Signal</span></div>
+                </div>
+            </div>
+        </div>
+        <!-- Breakout Tab -->
+        <div class="tab-content" id="tab-breakout">
+            <div class="card"><h3>Breakout Probability Scanner</h3>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button class="btn btn-blue" onclick="loadBreakout(getSymbol())">Current Stock</button>
+                    <button class="btn btn-ghost" onclick="loadBreakout('NIFTY')">NIFTY</button>
+                    <button class="btn btn-ghost" onclick="loadBreakout('BANKNIFTY')">BANKNIFTY</button>
+                </div>
+                <div id="breakoutResult"></div>
+            </div>
+        </div>
+
+        <!-- GainzAlgo V2 Alpha Tab -->
+        <div class="tab-content" id="tab-gainzalgo">
+            <div class="card"><h3>🧠 GainzAlgo V2 Alpha — AI Indicator</h3>
+                <p style="font-size:0.75rem;color:#9ca3af;margin-bottom:12px;">Multi-layer analysis: Trend + Momentum + Volatility + Volume + Structure + MTF Confluence → Perfect BUY/SELL signal with entry & exit.</p>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button class="btn btn-blue" onclick="loadGainzAlgo('NIFTY')">NIFTY</button>
+                    <button class="btn btn-blue" onclick="loadGainzAlgo('BANKNIFTY')">BANKNIFTY</button>
+                    <button class="btn btn-blue" onclick="loadGainzAlgo('SENSEX')">SENSEX</button>
+                    <button class="btn btn-ghost" onclick="loadGainzAlgo(getSymbol())">Current Stock</button>
+                </div>
+                <div id="gainzResult"></div>
+            </div>
+        </div>
+
+        <!-- News Tab -->
+        <div class="tab-content" id="tab-usa">
+            <div class="card"><h3>📰 Market News — International & Domestic</h3>
+                <button class="btn btn-blue" onclick="loadUSA()" style="margin-bottom:12px;">Load Latest News (US, India, Global Markets)</button>
+                <div id="usaResult"></div>
+            </div>
+        </div>
+
+        <!-- AI Prediction Tab -->
+        <div class="tab-content" id="tab-prediction">
+            <div class="card"><h3>AI Options Trading Prediction — CE/PE with Entry Points</h3>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button class="btn btn-blue" onclick="loadAIPrediction('NIFTY')">NIFTY</button>
+                    <button class="btn btn-blue" onclick="loadAIPrediction('BANKNIFTY')">BANKNIFTY</button>
+                    <button class="btn btn-blue" onclick="loadAIPrediction('SENSEX')">SENSEX</button>
+                </div>
+                <div id="predResult"><p style="color:#6b7280;font-size:0.8rem;">Click an index above to get AI-powered CE/PE prediction with entry, SL, and targets.</p></div>
+            </div>
+        </div>
+
+        <!-- Best Trade Tab -->
+        <div class="tab-content" id="tab-best">
+            <div id="bestResult"><p style="color:#6b7280;font-size:0.8rem;">Click "🏆 Best Trade" to scan all indices.</p></div>
+        </div>
+
+        <!-- Live Trade Tab -->
+        <div class="tab-content" id="tab-livetrade">
+            <div class="card"><h3>🔥 Current Entry Trade — Live Prediction</h3>
+                <p style="font-size:0.78rem;color:#9ca3af;margin-bottom:12px;">Scans all market data, news, indicators & patterns right now to predict the best current entry with exact strike, entry, exit, and expected points.</p>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button class="btn btn-blue" onclick="loadLiveTrade('NIFTY')">NIFTY</button>
+                    <button class="btn btn-blue" onclick="loadLiveTrade('BANKNIFTY')">BANKNIFTY</button>
+                    <button class="btn btn-blue" onclick="loadLiveTrade('SENSEX')">SENSEX</button>
+                    <button class="btn btn-ghost" onclick="loadLiveTradeAll()">Scan All</button>
+                </div>
+                <div id="liveTradeResult"></div>
+            </div>
+        </div>
+
+        <!-- Tomorrow Prediction Tab -->
+        <div class="tab-content" id="tab-tomorrow">
+            <div class="card"><h3>🔮 Tomorrow Prediction — Next Day Forecast</h3>
+                <p style="font-size:0.75rem;color:#9ca3af;margin-bottom:12px;">AI predicts next trading day: direction, probability, expected gap, high/low range, institutional activity.</p>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button class="btn btn-blue" onclick="loadTomorrow('NIFTY')">NIFTY</button>
+                    <button class="btn btn-blue" onclick="loadTomorrow('BANKNIFTY')">BANKNIFTY</button>
+                    <button class="btn btn-blue" onclick="loadTomorrow('SENSEX')">SENSEX</button>
+                </div>
+                <div id="tomorrowResult"></div>
+            </div>
+        </div>
+
+        <!-- Smart Trade Tab -->
+        <div class="tab-content" id="tab-smarttrade">
+            <div class="card"><h3>💎 AI Smart Trade Setup</h3>
+                <p style="font-size:0.75rem;color:#9ca3af;margin-bottom:12px;">Complete trade setup with entry, 3 targets, SL, strike, risk:reward, and success probability.</p>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button class="btn btn-blue" onclick="loadSmartTrade('NIFTY')">NIFTY</button>
+                    <button class="btn btn-blue" onclick="loadSmartTrade('BANKNIFTY')">BANKNIFTY</button>
+                    <button class="btn btn-blue" onclick="loadSmartTrade('SENSEX')">SENSEX</button>
+                </div>
+                <div id="smartTradeResult"></div>
+            </div>
+        </div>
+
+        <!-- Sentiment Tab -->
+        <div class="tab-content" id="tab-sentiment">
+            <div class="card"><h3>🌡️ Market Fear & Greed Index</h3>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button class="btn btn-blue" onclick="loadSentiment('NIFTY')">NIFTY</button>
+                    <button class="btn btn-blue" onclick="loadSentiment('BANKNIFTY')">BANKNIFTY</button>
+                    <button class="btn btn-blue" onclick="loadSentiment('SENSEX')">SENSEX</button>
+                </div>
+                <div id="sentimentResult"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Chat Panel -->
+    <aside class="chat-panel" id="chatPanel">
+        <div class="chat-hdr" id="chatDragHandle">
+            <span class="dot"></span>Trade Assistant
+            <span class="drag-hint">⋮⋮ drag to move</span>
+            <button class="btn-ghost" style="margin-left:8px;padding:2px 6px;font-size:0.7rem;" onclick="toggleFloatChat()" title="Detach/Attach">⇱</button>
+        </div>
+        <div class="quick-btns">
+            <button class="qbtn" onclick="qchat('USA news')">🇺🇸 USA</button>
+            <button class="qbtn" onclick="qchat('Options NIFTY')">Options</button>
+            <button class="qbtn" onclick="qchat('Best trade today')">Best Trade</button>
+            <button class="qbtn" onclick="qchat('Help')">Help</button>
+        </div>
+        <div class="chat-msgs" id="chatMsgs">
+            <div class="cmsg bot">Hi! Ask me about stocks, options, USA news, candlestick patterns, or intraday signals.</div>
+        </div>
+        <div class="typing" id="typing"><span></span><span></span><span></span></div>
+        <div class="chat-scroll-btns">
+            <button class="chat-scroll-btn" onclick="scrollChatUp()" title="Scroll up">▲</button>
+            <button class="chat-scroll-btn" onclick="scrollChatDown()" title="Scroll down">▼</button>
+        </div>
+        <div class="chat-input">
+            <input type="text" id="chatIn" placeholder="Ask anything..." autocomplete="off">
+            <button id="chatBtn" onclick="sendChat()">Send</button>
+        </div>
+    </aside>
+    <button class="chat-reattach-btn" id="chatReattachBtn" onclick="toggleFloatChat()" title="Show chat">💬</button>
+</div>
+<script>
+let currentSymbol = '';
+let currentData = null;
+
+function getSymbol() {
+    return document.getElementById('customStock').value.trim().toUpperCase() || document.getElementById('stockSelect').value || currentSymbol || 'NIFTY';
+}
+
+// Tab switching
+function switchTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    event.target.closest('.sidebar-item')?.classList.add('active');
+}
+
+// Main Analysis
+function runAnalysis() {
+    const symbol = getSymbol();
+    if (!symbol) { showErr('Enter a stock symbol'); return; }
+    currentSymbol = symbol;
+    show('loading'); hide('errorMsg');
+    document.getElementById('analyzeBtn').disabled = true;
+
+    fetch('/analyze', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({symbol, train:true}) })
+    .then(r => r.json())
+    .then(data => {
+        hide('loading'); document.getElementById('analyzeBtn').disabled = false;
+        if (data.error) { showErr(data.error); return; }
+        currentData = data;
+        try {
+            renderOverview(data);
+            loadChart(symbol);
+            renderTechnical(data);
+        } catch(e) { console.error('Render error:', e); }
+        switchTab('overview');
+    })
+    .catch(e => { hide('loading'); document.getElementById('analyzeBtn').disabled = false; showErr('Analysis failed: ' + (e.message||'Network error')); console.error(e); });
+}
+
+function renderOverview(d) {
+    document.getElementById('signalBanner').style.display = 'flex';
+    document.getElementById('overviewGrid').style.display = 'grid';
+    document.getElementById('reasonCard').style.display = 'block';
+    const cls = d.recommendation.includes('BUY') ? 'buy' : d.recommendation.includes('SELL') ? 'sell' : 'hold';
+    document.getElementById('signalBanner').className = 'signal-banner ' + cls;
+    document.getElementById('stockName').textContent = d.symbol;
+    document.getElementById('priceText').textContent = `₹${d.current_price} • ${d.stock_info.sector||''}`;
+    document.getElementById('rec').textContent = d.recommendation;
+    document.getElementById('rec').className = 'rec ' + cls;
+    document.getElementById('trendText').textContent = `${d.trend_analysis} • ${d.risk_level} Risk`;
+    document.getElementById('entry').textContent = `₹${d.entry_price}`;
+    document.getElementById('sl').textContent = `₹${d.stop_loss}`;
+    document.getElementById('tgt').textContent = `₹${d.target_price}`;
+    document.getElementById('risk').textContent = d.risk_level;
+    const sr = d.support_resistance;
+    document.getElementById('r2').textContent = `₹${sr.resistance_2}`;
+    document.getElementById('r1').textContent = `₹${sr.resistance_1}`;
+    document.getElementById('pvt').textContent = `₹${sr.pivot}`;
+    document.getElementById('s1').textContent = `₹${sr.support_1}`;
+    document.getElementById('s2').textContent = `₹${sr.support_2}`;
+    document.getElementById('sent').textContent = d.news_sentiment.overall_sentiment;
+    document.getElementById('mood').textContent = d.market_context.market_mood;
+    document.getElementById('nifty').textContent = d.market_context.nifty_trend;
+    document.getElementById('reason').textContent = d.reasoning;
+
+    // Predictions
+    const ph = document.getElementById('preds'); ph.innerHTML = '';
+    for (const [k,v] of Object.entries(d.predictions)) {
+        const p = v.probability_up*100; const up = p > 50;
+        ph.innerHTML += `<div class="pred"><div class="pred-hdr"><span style="color:#6b7280">${k.replace('_',' ')}</span><span class="${up?'green':'red'}">${v.direction} ${p.toFixed(0)}%</span></div><div class="pred-bar"><div class="pred-fill" style="width:${p}%;background:${up?'#22c55e':'#ef4444'}"></div></div></div>`;
+    }
+    // Headlines
+    const hl = document.getElementById('hl'); hl.innerHTML = '';
+    (d.news_sentiment.top_headlines||[]).slice(0,3).forEach(h => { hl.innerHTML += `<p style="font-size:0.7rem;color:#6b7280;padding:2px 0;">• ${h}</p>`; });
+}
+</script>
+<script>
+// Chart
+function loadChart(symbol) {
+    fetch(`/api/chart-data/${symbol}`).then(r=>r.json()).then(data => {
+        if (data.error) return;
+        const cd = data.chart_data, sr = data.support_resistance, dates = cd.map(d=>d.date);
+        Plotly.newPlot('priceChart', [
+            {x:dates, open:cd.map(d=>d.open), high:cd.map(d=>d.high), low:cd.map(d=>d.low), close:cd.map(d=>d.close), type:'candlestick', name:data.symbol, increasing:{line:{color:'#22c55e'}}, decreasing:{line:{color:'#ef4444'}}},
+            {x:dates, y:data.moving_averages.ema_20, type:'scatter', mode:'lines', name:'EMA20', line:{color:'#60a5fa',width:1}},
+            {x:dates, y:data.moving_averages.sma_50, type:'scatter', mode:'lines', name:'SMA50', line:{color:'#f59e0b',width:1}},
+            {x:[dates[0],dates[dates.length-1]], y:[sr.support_1,sr.support_1], type:'scatter', mode:'lines', name:`S1 ₹${sr.support_1}`, line:{color:'#22c55e',width:1.5,dash:'dash'}},
+            {x:[dates[0],dates[dates.length-1]], y:[sr.support_2,sr.support_2], type:'scatter', mode:'lines', name:`S2 ₹${sr.support_2}`, line:{color:'#4ade80',width:1,dash:'dot'}},
+            {x:[dates[0],dates[dates.length-1]], y:[sr.resistance_1,sr.resistance_1], type:'scatter', mode:'lines', name:`R1 ₹${sr.resistance_1}`, line:{color:'#ef4444',width:1.5,dash:'dash'}},
+            {x:[dates[0],dates[dates.length-1]], y:[sr.resistance_2,sr.resistance_2], type:'scatter', mode:'lines', name:`R2 ₹${sr.resistance_2}`, line:{color:'#f87171',width:1,dash:'dot'}},
+            {x:[dates[0],dates[dates.length-1]], y:[sr.pivot,sr.pivot], type:'scatter', mode:'lines', name:`Pivot ₹${sr.pivot}`, line:{color:'#eab308',width:1,dash:'dashdot'}},
+        ], {paper_bgcolor:'transparent', plot_bgcolor:'rgba(255,255,255,0.01)', font:{color:'#9ca3af',size:9,family:'Inter'}, xaxis:{rangeslider:{visible:false},gridcolor:'#1f2937'}, yaxis:{gridcolor:'#1f2937'}, legend:{orientation:'h',y:-0.12,font:{size:8}}, margin:{t:8,b:45,l:50,r:8}}, {responsive:true,displayModeBar:false});
+    });
+}
+
+// Technical
+function renderTechnical(d) {
+    const ti = d.technical_indicators;
+    document.getElementById('techGrid').innerHTML = `
+        <div class="card"><h3>Indicators</h3>
+            <div class="row"><span class="lbl">RSI</span><span class="val">${ti.rsi} (${ti.rsi_signal})</span></div>
+            <div class="row"><span class="lbl">MACD</span><span class="val">${ti.macd_signal}</span></div>
+            <div class="row"><span class="lbl">Moving Avg</span><span class="val">${ti.ma_signal}</span></div>
+            <div class="row"><span class="lbl">ADX</span><span class="val">${ti.adx} (${ti.trend_strength})</span></div>
+            <div class="row"><span class="lbl">Bollinger</span><span class="val">${ti.bb_signal}</span></div>
+            <div class="row"><span class="lbl">Volume</span><span class="val">${ti.volume_ratio}x</span></div>
+        </div>
+        <div class="card"><h3>Market Context</h3>
+            <div class="row"><span class="lbl">Sector</span><span class="val">${d.stock_info.sector||'N/A'}</span></div>
+            <div class="row"><span class="lbl">P/E</span><span class="val">${d.stock_info.pe_ratio?d.stock_info.pe_ratio.toFixed(1):'N/A'}</span></div>
+            <div class="row"><span class="lbl">Market Cap</span><span class="val">${d.stock_info.market_cap?'₹'+(d.stock_info.market_cap/1e7).toFixed(0)+' Cr':'N/A'}</span></div>
+            <div class="row"><span class="lbl">52W High</span><span class="val">${d.stock_info['52_week_high']||'N/A'}</span></div>
+            <div class="row"><span class="lbl">52W Low</span><span class="val">${d.stock_info['52_week_low']||'N/A'}</span></div>
+        </div>`;
+}
+
+function renderPredictions(d) {
+    // This is called after stock analysis - just updates the overview predictions
+    // The AI Prediction tab now has its own loadAIPrediction function
+}
+
+function loadAIPrediction(idx) {
+    const el = document.getElementById('predResult');
+    el.innerHTML = '<p style="color:#6b7280;font-size:0.8rem;">Analyzing ' + idx + '... collecting data, indicators, patterns, news...</p>';
+
+    // Fetch options analysis, intraday signal, candlestick patterns, and breakout in parallel
+    Promise.all([
+        fetch(`/api/options-with-usa?index=${idx}`).then(r=>r.json()),
+        fetch(`/api/intraday-signal/${idx}`).then(r=>r.json()),
+        fetch(`/api/candlestick-scan/${idx}`).then(r=>r.json()),
+        fetch(`/api/breakout/${idx}`).then(r=>r.json()),
+    ]).then(([options, intraday, candles, breakout]) => {
+        if (options.error && intraday.error) { el.innerHTML = `<p class="red">${options.error || intraday.error}</p>`; return; }
+
+        const o = options.options_analysis || {};
+        const rec = o.recommendation || {};
+        const adj = options.adjusted_recommendation || {};
+        const ind = o.indicators || {};
+        const levels = o.levels || {};
+        const bp = breakout || {};
+
+        const side = adj.side || rec.side || 'NEUTRAL';
+        const isBuy = side === 'CE';
+        const cls = isBuy ? 'buy' : side === 'PE' ? 'sell' : 'hold';
+
+        let html = '';
+
+        // Main signal banner
+        html += `<div class="signal-banner ${cls}" style="margin-bottom:12px;">
+            <div class="left"><h2>${idx}</h2><p>₹${(o.current_price||0).toLocaleString()}</p></div>
+            <div class="right"><div class="rec ${cls}">${adj.action || rec.action || 'WAIT'}</div>
+            <p style="font-size:0.72rem;color:#9ca3af;">Confidence: ${adj.confidence || rec.confidence || 'Low'} | Score: ${(adj.adjusted_score || rec.score || 0)}/10</p></div>
+        </div>`;
+
+        // Trade setup card
+        html += `<div class="card-grid">`;
+        html += `<div class="card"><h3>🎯 Trade Setup — ${side === 'CE' ? 'BUY CALL (CE)' : side === 'PE' ? 'BUY PUT (PE)' : 'NO TRADE'}</h3>
+            <div class="row"><span class="lbl">Side</span><span class="val ${cls}" style="font-size:0.9rem;font-weight:700;">${side === 'CE' ? '📈 BUY CE (Bullish)' : side === 'PE' ? '📉 BUY PE (Bearish)' : '⏸️ WAIT'}</span></div>
+            <div class="row"><span class="lbl">Strike Price</span><span class="val blue">${rec.suggested_strike || levels.atm_strike || '-'} ${side}</span></div>
+            <div class="row"><span class="lbl">Entry</span><span class="val">${isBuy ? 'Above ' + (intraday.entry || levels.pivot || '-') : 'Below ' + (intraday.entry || levels.pivot || '-')}</span></div>
+            <div class="row"><span class="lbl">Stop Loss</span><span class="val red">${intraday.stop_loss || rec.stoploss_level || '-'}</span></div>
+            <div class="row"><span class="lbl">Target 1</span><span class="val green">${intraday.target_1 || rec.target_level || '-'}</span></div>
+            <div class="row"><span class="lbl">Target 2</span><span class="val green">${intraday.target_2 || '-'}</span></div>
+            <div class="row"><span class="lbl">Target 3</span><span class="val green">${intraday.target_3 || '-'}</span></div>
+            <div class="row"><span class="lbl">Risk:Reward</span><span class="val">${intraday.risk_reward || rec.risk_reward || '-'}</span></div>
+            <div class="row"><span class="lbl">Position Size</span><span class="val">${rec.position_sizing || '2-3% capital'}</span></div>
+            <div class="row"><span class="lbl">Exit Strategy</span><span class="val">${rec.exit_strategy || 'Exit at target or 30% premium loss'}</span></div>
+        </div>`;
+
+        // Indicators card
+        html += `<div class="card"><h3>📊 Technical Analysis</h3>
+            <div class="row"><span class="lbl">RSI</span><span class="val">${ind.rsi || '-'} (${ind.rsi_signal || '-'})</span></div>
+            <div class="row"><span class="lbl">MACD</span><span class="val">${ind.macd_crossover || '-'}</span></div>
+            <div class="row"><span class="lbl">EMA Trend</span><span class="val">${ind.ema_trend || '-'}</span></div>
+            <div class="row"><span class="lbl">VWAP</span><span class="val">${ind.price_vs_vwap || '-'} (${ind.vwap || '-'})</span></div>
+            <div class="row"><span class="lbl">ADX</span><span class="val">${ind.adx || '-'} (${ind.trend_strength || '-'})</span></div>
+            <div class="row"><span class="lbl">Stochastic</span><span class="val">${ind.stochastic_k || '-'} (${ind.stochastic_signal || '-'})</span></div>
+            <div class="row"><span class="lbl">Bollinger</span><span class="val">Upper: ${ind.bollinger_upper || '-'} | Lower: ${ind.bollinger_lower || '-'}</span></div>
+        </div>`;
+        html += `</div>`;
+
+        // Breakout + Patterns row
+        html += `<div class="card-grid">`;
+        html += `<div class="card"><h3>🚀 Breakout Probability</h3>
+            <div class="row"><span class="lbl">Overall</span><span class="val blue">${bp.breakout_probability || 0}%</span></div>
+            <div class="row"><span class="lbl">Upside Prob</span><span class="val green">${bp.upside_probability || 0}%</span></div>
+            <div class="row"><span class="lbl">Downside Prob</span><span class="val red">${bp.downside_probability || 0}%</span></div>
+            <div class="row"><span class="lbl">Signal</span><span class="val">${bp.signal || '-'}</span></div>
+        </div>`;
+
+        // Candlestick patterns
+        html += `<div class="card"><h3>🕯️ Candlestick Patterns</h3>`;
+        if (candles.patterns && candles.patterns.length > 0) {
+            candles.patterns.forEach(p => {
+                const pcls = p.signal.includes('BUY') ? 'badge-buy' : p.signal.includes('SELL') ? 'badge-sell' : 'badge-hold';
+                html += `<div class="row"><span class="lbl">${p.pattern}</span><span class="badge ${pcls}" style="font-size:0.68rem;">${p.signal} ${p.confidence}%</span></div>`;
+            });
+        } else {
+            html += `<p style="font-size:0.75rem;color:#6b7280;">No significant patterns on latest candles.</p>`;
+        }
+        html += `</div>`;
+        html += `</div>`;
+
+        // USA Impact
+        if (options.usa_impact) {
+            const usa = options.usa_impact;
+            html += `<div class="card"><h3>🇺🇸 USA News Impact on Trade</h3>
+                <div class="row"><span class="lbl">US Sentiment</span><span class="val">${usa.usa_sentiment || '-'}</span></div>
+                <div class="row"><span class="lbl">US Market Mood</span><span class="val">${usa.us_market_mood || '-'}</span></div>
+                <div class="row"><span class="lbl">President News</span><span class="val">${usa.president_sentiment || '-'}</span></div>
+                <div class="row"><span class="lbl">Score Adjustment</span><span class="val">${usa.adjustment_applied > 0 ? '+' : ''}${usa.adjustment_applied || 0} points</span></div>
+                <div class="row"><span class="lbl">Options Bias</span><span class="val">${usa.options_bias || '-'}</span></div>
+            </div>`;
+        }
+
+        // Reasons
+        if (rec.reasons && rec.reasons.length) {
+            html += `<div class="card"><h3>💡 Analysis Reasons</h3>`;
+            rec.reasons.forEach(r => { html += `<p style="font-size:0.75rem;color:#9ca3af;padding:2px 0;">• ${r}</p>`; });
+            html += `<p style="margin-top:8px;font-size:0.7rem;color:#4b5563;">⚠️ Not financial advice. Use proper risk management and stop loss.</p></div>`;
+        }
+
+        el.innerHTML = html;
+    }).catch(e => { el.innerHTML = `<p class="red">Error: ${e.message}</p>`; });
+}
+</script>
+<script>
+// Options
+function loadOptions(idx) {
+    const el = document.getElementById('optionsResult');
+    el.innerHTML = '<p style="color:#6b7280;font-size:0.8rem;">Loading options analysis...</p>';
+    fetch(`/api/options-with-usa?index=${idx}`).then(r=>r.json()).then(data => {
+        if (data.error) { el.innerHTML = `<p class="red">${data.error}</p>`; return; }
+        const o = data.options_analysis, r = o.recommendation, adj = data.adjusted_recommendation;
+        el.innerHTML = `
+            <div class="signal-banner ${adj.side==='CE'?'buy':adj.side==='PE'?'sell':'hold'}" style="margin-bottom:12px;">
+                <div class="left"><h2>${o.index}</h2><p>₹${o.current_price}</p></div>
+                <div class="right"><div class="rec ${adj.side==='CE'?'buy':'sell'}">${adj.action}</div><p style="font-size:0.72rem;color:#9ca3af;">Confidence: ${adj.confidence} | Score: ${adj.adjusted_score}</p></div>
+            </div>
+            <div class="card-grid">
+                <div class="card"><h3>Trade Setup</h3>
+                    <div class="row"><span class="lbl">Strike</span><span class="val blue">${r.suggested_strike} ${adj.side}</span></div>
+                    <div class="row"><span class="lbl">Target</span><span class="val green">${r.target_level}</span></div>
+                    <div class="row"><span class="lbl">Stop Loss</span><span class="val red">${r.stoploss_level}</span></div>
+                    <div class="row"><span class="lbl">Risk:Reward</span><span class="val">${r.risk_reward}</span></div>
+                    <div class="row"><span class="lbl">Position Size</span><span class="val">${r.position_sizing}</span></div>
+                </div>
+                <div class="card"><h3>USA Impact</h3>
+                    <div class="row"><span class="lbl">US Sentiment</span><span class="val">${data.usa_impact.usa_sentiment}</span></div>
+                    <div class="row"><span class="lbl">US Market</span><span class="val">${data.usa_impact.us_market_mood}</span></div>
+                    <div class="row"><span class="lbl">Adjustment</span><span class="val">${data.usa_impact.adjustment_applied>0?'+':''}${data.usa_impact.adjustment_applied}</span></div>
+                    <div class="row"><span class="lbl">Options Bias</span><span class="val">${data.usa_impact.options_bias}</span></div>
+                </div>
+            </div>
+            <div class="card"><h3>Reasons</h3>${(r.reasons||[]).map(x=>`<p style="font-size:0.75rem;color:#9ca3af;padding:2px 0;">• ${x}</p>`).join('')}</div>`;
+    }).catch(()=>{ el.innerHTML='<p class="red">Failed to load.</p>'; });
+}
+
+// Intraday
+function loadIntraday(sym) {
+    const el = document.getElementById('intradayResult');
+    el.innerHTML = '<p style="color:#6b7280;font-size:0.8rem;">Loading...</p>';
+    fetch(`/api/intraday-signal/${sym}`).then(r=>r.json()).then(d => {
+        if (d.error) { el.innerHTML = `<p class="red">${d.error}</p>`; return; }
+        const cls = d.direction==='BUY'?'buy':d.direction==='SELL'?'sell':'hold';
+        el.innerHTML = `
+            <div class="signal-banner ${cls}">
+                <div class="left"><h2>${d.symbol}</h2><p>Entry: ₹${d.entry}</p></div>
+                <div class="right"><div class="rec ${cls}">${d.direction}${d.option_side?' '+d.option_side:''}</div><p style="font-size:0.72rem;color:#9ca3af;">Confidence: ${d.confidence}%</p></div>
+            </div>
+            <div class="card-grid">
+                <div class="card"><h3>Trade Levels</h3>
+                    <div class="row"><span class="lbl">Entry</span><span class="val">${d.entry}</span></div>
+                    <div class="row"><span class="lbl">Stop Loss</span><span class="val red">${d.stop_loss}</span></div>
+                    <div class="row"><span class="lbl">Target 1</span><span class="val green">${d.target_1}</span></div>
+                    <div class="row"><span class="lbl">Target 2</span><span class="val green">${d.target_2}</span></div>
+                    <div class="row"><span class="lbl">Target 3</span><span class="val green">${d.target_3}</span></div>
+                    <div class="row"><span class="lbl">Risk:Reward</span><span class="val">${d.risk_reward}</span></div>
+                    ${d.strike?`<div class="row"><span class="lbl">Strike</span><span class="val blue">${d.strike} ${d.option_side}</span></div>`:''}
+                </div>
+                <div class="card"><h3>Pivot Levels</h3>
+                    ${d.pivots?Object.entries(d.pivots).map(([k,v])=>`<div class="row"><span class="lbl">${k.toUpperCase()}</span><span class="val">${v}</span></div>`).join(''):''}
+                </div>
+            </div>
+            <div class="card"><h3>Reasons</h3>${(d.reasons||[]).map(x=>`<p style="font-size:0.75rem;color:#9ca3af;padding:2px 0;">• ${x}</p>`).join('')}</div>`;
+    }).catch(()=>{ el.innerHTML='<p class="red">Failed.</p>'; });
+}
+</script>
+<script>
+// Candlestick Scanner
+function loadCandles(sym) {
+    const el = document.getElementById('candleResult');
+    el.innerHTML = '<p style="color:#6b7280;font-size:0.8rem;">Scanning patterns...</p>';
+    fetch(`/api/candlestick-scan/${sym}`).then(r=>r.json()).then(d => {
+        if (d.error) { el.innerHTML = `<p class="red">${d.error}</p>`; return; }
+        let html = `<p style="font-size:0.8rem;margin-bottom:10px;"><strong>${d.symbol}</strong> @ ₹${d.current_price} — Last candle: <span class="${d.last_candle.type==='Bullish'?'green':'red'}">${d.last_candle.type}</span></p>`;
+        if (d.patterns.length === 0) {
+            html += '<p style="color:#6b7280;font-size:0.8rem;">No significant patterns detected on latest candles.</p>';
+        } else {
+            html += '<div class="card-grid">';
+            d.patterns.forEach(p => {
+                const cls = p.signal.includes('BUY')?'badge-buy':p.signal.includes('SELL')?'badge-sell':'badge-hold';
+                html += `<div class="pattern-card"><div class="name">${p.pattern}</div><div class="desc">${p.description}</div><span class="badge ${cls}">${p.signal} • ${p.confidence}%</span></div>`;
+            });
+            html += '</div>';
+        }
+        el.innerHTML = html;
+    }).catch(()=>{ el.innerHTML='<p class="red">Failed.</p>'; });
+}
+
+// Breakout
+function loadBreakout(sym) {
+    const el = document.getElementById('breakoutResult');
+    el.innerHTML = '<p style="color:#6b7280;font-size:0.8rem;">Calculating breakout probability...</p>';
+    fetch(`/api/breakout/${sym}`).then(r=>r.json()).then(d => {
+        if (d.error) { el.innerHTML = `<p class="red">${d.error}</p>`; return; }
+        const f = d.factors;
+        el.innerHTML = `
+            <div class="signal-banner ${d.signal.includes('UP')?'buy':d.signal.includes('DOWN')||d.signal.includes('BREAKDOWN')?'sell':'hold'}">
+                <div class="left"><h2>${d.symbol}</h2><p>₹${d.current_price}</p></div>
+                <div class="right"><div class="rec ${d.signal.includes('UP')?'buy':d.signal.includes('DOWN')?'sell':'hold'}">${d.signal}</div><p style="font-size:0.72rem;color:#9ca3af;">${d.confidence} confidence</p></div>
+            </div>
+            <div class="card-grid">
+                <div class="card"><h3>Probability</h3>
+                    <div class="row"><span class="lbl">Overall</span><span class="val blue">${d.breakout_probability}%</span></div>
+                    <div class="row"><span class="lbl">Upside</span><span class="val green">${d.upside_probability}%</span></div>
+                    <div class="row"><span class="lbl">Downside</span><span class="val red">${d.downside_probability}%</span></div>
+                    <div class="row"><span class="lbl">Direction Bias</span><span class="val">${d.direction_bias}% bullish</span></div>
+                </div>
+                <div class="card"><h3>Factors</h3>
+                    <div class="row"><span class="lbl">BB Squeeze</span><span class="val">${f.squeeze_score}/100</span></div>
+                    <div class="row"><span class="lbl">Volume</span><span class="val">${f.volume_score}/100 (${f.vol_ratio}x)</span></div>
+                    <div class="row"><span class="lbl">Compression</span><span class="val">${f.compression_score}/100</span></div>
+                    <div class="row"><span class="lbl">ADX</span><span class="val">${f.adx_score}/100</span></div>
+                    <div class="row"><span class="lbl">Near Resistance</span><span class="val">${f.near_resistance?'Yes':'No'}</span></div>
+                    <div class="row"><span class="lbl">Near Support</span><span class="val">${f.near_support?'Yes':'No'}</span></div>
+                </div>
+            </div>`;
+    }).catch(()=>{ el.innerHTML='<p class="red">Failed.</p>'; });
+}
+
+// GainzAlgo V2 Alpha
+function loadGainzAlgo(sym) {
+    const el = document.getElementById('gainzResult');
+    el.innerHTML = `<p style="color:#6b7280;font-size:0.8rem;">🧠 Running GainzAlgo V2 Alpha on ${sym}...</p>`;
+    fetch(`/api/gainzalgo/${sym}`).then(r=>r.json()).then(d => {
+        if (d.error) { el.innerHTML = `<p class="red">${d.error}</p>`; return; }
+
+        const cls = d.side === 'CE' ? 'buy' : d.side === 'PE' ? 'sell' : 'hold';
+        const layers = d.layer_scores || {};
+
+        let html = '';
+        // Signal banner
+        html += `<div class="signal-banner ${cls}" style="margin-bottom:12px;">
+            <div class="left"><h2>${d.symbol}</h2><p>₹${(d.current_price||0).toLocaleString()} • Score: ${d.composite_score}</p></div>
+            <div class="right"><div class="rec ${cls}">${d.signal}</div>
+            <p style="font-size:0.72rem;color:#9ca3af;">${d.side} • Confidence: ${d.confidence}%</p></div>
+        </div>`;
+
+        // Trade setup
+        html += `<div class="card-grid">`;
+        html += `<div class="card" style="border-left:3px solid ${cls==='buy'?'#22c55e':'#ef4444'}"><h3>🎯 Trade Setup — ${d.side === 'CE' ? 'BUY CALL' : d.side === 'PE' ? 'BUY PUT' : 'NO TRADE'}</h3>
+            <div class="row"><span class="lbl">Entry</span><span class="val blue" style="font-size:0.95rem;">₹${d.entry_price}</span></div>
+            <div class="row"><span class="lbl">Stop Loss</span><span class="val red">₹${d.stop_loss}</span></div>
+            <div class="row"><span class="lbl">Target 1</span><span class="val green">₹${d.target_1}</span></div>
+            <div class="row"><span class="lbl">Target 2</span><span class="val green">₹${d.target_2}</span></div>
+            <div class="row"><span class="lbl">Target 3</span><span class="val green">₹${d.target_3}</span></div>
+            <div class="row"><span class="lbl">Exit</span><span class="val">₹${d.exit_price}</span></div>
+            <div class="row"><span class="lbl">Expected Points</span><span class="val green">+${d.expected_points} pts</span></div>
+            <div class="row"><span class="lbl">Risk:Reward</span><span class="val">${d.risk_reward}</span></div>
+        </div>`;
+
+        // Layer scores
+        html += `<div class="card"><h3>📊 Layer Analysis Scores</h3>
+            <div class="row"><span class="lbl">🔀 Trend</span><span class="val">${layers.trend}/100</span></div>
+            <div class="pred"><div class="pred-bar"><div class="pred-fill" style="width:${Math.abs(layers.trend)}%;background:${layers.trend>0?'#22c55e':'#ef4444'}"></div></div></div>
+            <div class="row"><span class="lbl">⚡ Momentum</span><span class="val">${layers.momentum}/100</span></div>
+            <div class="pred"><div class="pred-bar"><div class="pred-fill" style="width:${Math.abs(layers.momentum)}%;background:${layers.momentum>0?'#22c55e':'#ef4444'}"></div></div></div>
+            <div class="row"><span class="lbl">📉 Volatility</span><span class="val">${layers.volatility}/100</span></div>
+            <div class="pred"><div class="pred-bar"><div class="pred-fill" style="width:${Math.abs(layers.volatility)}%;background:${layers.volatility>0?'#22c55e':'#ef4444'}"></div></div></div>
+            <div class="row"><span class="lbl">📊 Volume</span><span class="val">${layers.volume}/100</span></div>
+            <div class="pred"><div class="pred-bar"><div class="pred-fill" style="width:${Math.abs(layers.volume)}%;background:${layers.volume>0?'#22c55e':'#ef4444'}"></div></div></div>
+            <div class="row"><span class="lbl">🏗️ Structure</span><span class="val">${layers.structure}/100</span></div>
+            <div class="pred"><div class="pred-bar"><div class="pred-fill" style="width:${Math.abs(layers.structure)}%;background:${layers.structure>0?'#22c55e':'#ef4444'}"></div></div></div>
+            <div class="row"><span class="lbl">🔗 MTF Confluence</span><span class="val">${layers.mtf_confluence}/100</span></div>
+            <div class="pred"><div class="pred-bar"><div class="pred-fill" style="width:${Math.abs(layers.mtf_confluence)}%;background:${layers.mtf_confluence>0?'#22c55e':'#ef4444'}"></div></div></div>
+        </div>`;
+        html += `</div>`;
+
+        // Details
+        const td = d.trend_data || {};
+        const md = d.momentum_data || {};
+        const vd = d.volatility_data || {};
+        html += `<div class="card-grid">`;
+        html += `<div class="card"><h3>Trend Details</h3>
+            <div class="row"><span class="lbl">Trend</span><span class="val">${td.trend||'-'}</span></div>
+            <div class="row"><span class="lbl">EMA 9/21/50</span><span class="val">${td.ema_9} / ${td.ema_21} / ${td.ema_50}</span></div>
+            <div class="row"><span class="lbl">ADX</span><span class="val">${td.adx}</span></div>
+            <div class="row"><span class="lbl">Supertrend</span><span class="val">${td.supertrend}</span></div>
+        </div>`;
+        html += `<div class="card"><h3>Momentum & Volatility</h3>
+            <div class="row"><span class="lbl">RSI</span><span class="val">${md.rsi} (${md.rsi_direction})</span></div>
+            <div class="row"><span class="lbl">MACD</span><span class="val">${md.macd_crossover}</span></div>
+            <div class="row"><span class="lbl">Momentum</span><span class="val">${md.momentum}</span></div>
+            <div class="row"><span class="lbl">Squeeze</span><span class="val">${vd.squeeze?'YES ⚠️':'No'}</span></div>
+            <div class="row"><span class="lbl">ATR</span><span class="val">${vd.atr} (${vd.atr_pct}%)</span></div>
+        </div>`;
+        html += `</div>`;
+
+        // Reasons
+        if (d.reasons && d.reasons.length) {
+            html += `<div class="card"><h3>💡 Signal Reasons</h3>`;
+            d.reasons.forEach(r => { html += `<p style="font-size:0.75rem;color:#9ca3af;padding:2px 0;">• ${r}</p>`; });
+            html += `<p style="margin-top:10px;font-size:0.68rem;color:#4b5563;">⚠️ Not financial advice. Use proper risk management.</p></div>`;
+        }
+
+        el.innerHTML = html;
+    }).catch(e => { el.innerHTML = `<p class="red">Error: ${e.message}</p>`; });
+}
+
+// USA News
+function loadUSA() {
+    const el = document.getElementById('usaResult');
+    el.innerHTML = '<p style="color:#6b7280;font-size:0.8rem;">Loading USA news...</p>';
+    switchTab('usa');
+    fetch('/api/usa-news').then(r=>r.json()).then(d => {
+        if (d.error) { el.innerHTML = `<p class="red">${d.error}</p>`; return; }
+        const ic = d.india_market_impact==='Positive'?'green':d.india_market_impact==='Negative'?'red':'yellow';
+        let html = `<div class="row"><span class="lbl">India Impact</span><span class="val ${ic}">${d.india_market_impact}</span></div>`;
+        html += `<div class="row"><span class="lbl">US Sentiment</span><span class="val">${d.overall_sentiment} (${d.overall_score})</span></div>`;
+        html += `<p style="font-size:0.78rem;color:#9ca3af;margin:8px 0;">${d.impact_description}</p>`;
+        const cats = d.categories||{};
+        const labels = {president:'🏛️ President',federal_reserve:'🏦 Fed',trade_policy:'🌐 Trade',us_markets:'📈 Markets'};
+        for (const [k,l] of Object.entries(labels)) { const c=cats[k]; if(c) html+=`<div class="row"><span class="lbl">${l}</span><span class="val">${c.sentiment} (${c.score})</span></div>`; }
+        if (d.top_headlines?.length) { html+='<div style="margin-top:10px;">'; d.top_headlines.slice(0,5).forEach(h=>{html+=`<p style="font-size:0.72rem;color:#6b7280;padding:3px 0;">• ${h}</p>`;}); html+='</div>'; }
+        el.innerHTML = html;
+    }).catch(()=>{ el.innerHTML='<p class="red">Failed.</p>'; });
+}
+
+// Tomorrow Prediction
+function loadTomorrow(idx) {
+    const el = document.getElementById('tomorrowResult');
+    el.innerHTML = '<p style="color:#6b7280;font-size:0.8rem;">🔮 Predicting tomorrow for ' + idx + '...</p>';
+    fetch(`/api/tomorrow/${idx}`).then(r=>r.json()).then(d => {
+        if (d.error) { el.innerHTML = `<p class="red">${d.error}</p>`; return; }
+        const cls = d.signal==='BUY'?'buy':d.signal==='SELL'?'sell':'hold';
+        let html = `<div class="signal-banner ${cls}" style="margin-bottom:12px;">
+            <div class="left"><h2>${d.symbol}</h2><p>₹${d.current_price} • ${d.prediction_for}</p></div>
+            <div class="right"><div class="rec ${cls}">${d.direction}</div><p style="font-size:0.72rem;color:#9ca3af;">Confidence: ${d.confidence}%</p></div>
+        </div>`;
+        html += `<div class="card-grid">`;
+        html += `<div class="card"><h3>📊 Prediction</h3>
+            <div class="row"><span class="lbl">Direction</span><span class="val ${cls}">${d.direction}</span></div>
+            <div class="row"><span class="lbl">Bullish Prob</span><span class="val green">${d.bullish_probability}%</span></div>
+            <div class="row"><span class="lbl">Bearish Prob</span><span class="val red">${d.bearish_probability}%</span></div>
+            <div class="row"><span class="lbl">Opening Gap</span><span class="val">${d.gap_direction} (${d.expected_open_gap} pts)</span></div>
+            <div class="row"><span class="lbl">Expected High</span><span class="val green">₹${d.expected_high}</span></div>
+            <div class="row"><span class="lbl">Expected Low</span><span class="val red">₹${d.expected_low}</span></div>
+            <div class="row"><span class="lbl">Close Range</span><span class="val">${d.expected_close_range}</span></div>
+        </div>`;
+        html += `<div class="card"><h3>🏦 Institutional Activity</h3>
+            <div class="row"><span class="lbl">Inst. Buying</span><span class="val ${d.institutional_buying?'green':'red'}">${d.institutional_buying?'✅ Likely':'❌ Unlikely'}</span></div>
+            <div class="row"><span class="lbl">Inst. Selling</span><span class="val ${d.institutional_selling?'red':'green'}">${d.institutional_selling?'⚠️ Likely':'✅ Unlikely'}</span></div>
+            <div class="row"><span class="lbl">ATR</span><span class="val">${d.atr} pts</span></div>
+            <div class="row"><span class="lbl">Pivot</span><span class="val">₹${d.key_levels.pivot}</span></div>
+            <div class="row"><span class="lbl">Resistance</span><span class="val red">₹${d.key_levels.resistance}</span></div>
+            <div class="row"><span class="lbl">Support</span><span class="val green">₹${d.key_levels.support}</span></div>
+        </div>`;
+        html += `</div>`;
+        html += `<p style="font-size:0.68rem;color:#4b5563;margin-top:8px;">⚠️ Predictions are probabilistic. Not financial advice.</p>`;
+        el.innerHTML = html;
+    }).catch(e => { el.innerHTML = `<p class="red">Error: ${e.message}</p>`; });
+}
+
+// Smart Trade
+function loadSmartTrade(idx) {
+    const el = document.getElementById('smartTradeResult');
+    el.innerHTML = '<p style="color:#6b7280;font-size:0.8rem;">💎 Generating smart trade for ' + idx + '...</p>';
+    fetch(`/api/smart-trade/${idx}`).then(r=>r.json()).then(d => {
+        if (d.error) { el.innerHTML = `<p class="red">${d.error}</p>`; return; }
+        const cls = d.side==='CE'?'buy':d.side==='PE'?'sell':'hold';
+        let html = `<div class="signal-banner ${cls}" style="margin-bottom:12px;">
+            <div class="left"><h2>${d.symbol}</h2><p>${d.direction}</p></div>
+            <div class="right"><div class="rec ${cls}">${d.signal} ${d.side}</div><p style="font-size:0.72rem;color:#9ca3af;">Strength: ${d.strength} • ${d.success_probability}% success</p></div>
+        </div>`;
+        html += `<div class="card" style="border-left:3px solid ${cls==='buy'?'#22c55e':'#ef4444'}"><h3>🎯 AI Trade Setup</h3>
+            <div class="row"><span class="lbl">Instrument</span><span class="val">${d.symbol}</span></div>
+            <div class="row"><span class="lbl">Signal</span><span class="val ${cls}" style="font-weight:700;">${d.signal}</span></div>
+            <div class="row"><span class="lbl">Strength</span><span class="val">${d.strength}</span></div>
+            <div class="row"><span class="lbl">Strike</span><span class="val blue" style="font-size:0.95rem;">${d.strike}</span></div>
+            <div class="row"><span class="lbl">Entry Point</span><span class="val">₹${d.entry}</span></div>
+            <div class="row"><span class="lbl">Target 1</span><span class="val green">₹${d.target_1}</span></div>
+            <div class="row"><span class="lbl">Target 2</span><span class="val green">₹${d.target_2}</span></div>
+            <div class="row"><span class="lbl">Target 3</span><span class="val green">₹${d.target_3}</span></div>
+            <div class="row"><span class="lbl">Stop Loss</span><span class="val red">₹${d.stop_loss}</span></div>
+            <div class="row"><span class="lbl">Risk:Reward</span><span class="val">${d.risk_reward}</span></div>
+            <div class="row"><span class="lbl">Success Probability</span><span class="val blue">${d.success_probability}%</span></div>
+            <div class="row"><span class="lbl">Expected Points</span><span class="val green">${d.expected_points} Points</span></div>
+        </div>`;
+        html += `<p style="font-size:0.68rem;color:#4b5563;margin-top:8px;">⚠️ Not financial advice. Use proper risk management and stop loss.</p>`;
+        el.innerHTML = html;
+    }).catch(e => { el.innerHTML = `<p class="red">Error: ${e.message}</p>`; });
+}
+
+// Sentiment
+function loadSentiment(idx) {
+    const el = document.getElementById('sentimentResult');
+    el.innerHTML = '<p style="color:#6b7280;font-size:0.8rem;">🌡️ Calculating sentiment...</p>';
+    fetch(`/api/sentiment/${idx}`).then(r=>r.json()).then(d => {
+        if (d.error) { el.innerHTML = `<p class="red">${d.error}</p>`; return; }
+        const c = d.components || {};
+        const color = d.score >= 60 ? '#22c55e' : d.score <= 40 ? '#ef4444' : '#eab308';
+        let html = `<div style="text-align:center;padding:20px;">
+            <div style="font-size:3rem;">${d.mood.split(' ')[0]}</div>
+            <div style="font-size:2.5rem;font-weight:700;color:${color};">${d.score}</div>
+            <div style="font-size:1rem;color:${color};margin-top:4px;">${d.mood_label}</div>
+            <p style="font-size:0.75rem;color:#6b7280;margin-top:8px;">${d.symbol} Market Sentiment Index (0=Fear, 100=Greed)</p>
+        </div>`;
+        html += `<div class="card"><h3>Components</h3>`;
+        const labels = {momentum:'⚡ Momentum (RSI)', trend:'📈 Trend (vs SMA)', volume:'📊 Volume', vix:'😱 VIX Fear', news:'📰 News', breadth:'🌐 Market Breadth'};
+        for (const [k,lbl] of Object.entries(labels)) {
+            const v = c[k] || 0;
+            const vc = v >= 60 ? '#22c55e' : v <= 40 ? '#ef4444' : '#eab308';
+            html += `<div class="row"><span class="lbl">${lbl}</span><span class="val" style="color:${vc}">${v}/100</span></div>`;
+            html += `<div class="pred"><div class="pred-bar"><div class="pred-fill" style="width:${v}%;background:${vc}"></div></div></div>`;
+        }
+        html += `</div>`;
+        el.innerHTML = html;
+    }).catch(e => { el.innerHTML = `<p class="red">Error: ${e.message}</p>`; });
+}
+</script>
+<script>
+// Best Trade Today
+function loadBestTrade() {
+    switchTab('best');
+    const el = document.getElementById('bestResult');
+    el.innerHTML = '<p style="color:#6b7280;font-size:0.8rem;">Scanning NIFTY, BANKNIFTY, SENSEX...</p>';
+    fetch('/api/best-trade-today').then(r=>r.json()).then(d => {
+        if (d.error) { el.innerHTML = `<p class="red">${d.error}</p>`; return; }
+        let html = '';
+        if (d.best_trade) {
+            const b = d.best_trade;
+            html += `<div class="best-trade">
+                <span class="trophy">🏆</span>
+                <h2>Best Trade Today: ${b.index}</h2>
+                <div class="card-grid" style="margin-top:12px;">
+                    <div><div class="row"><span class="lbl">Direction</span><span class="val blue">${b.direction}</span></div>
+                    <div class="row"><span class="lbl">Strike</span><span class="val">${b.strike}</span></div>
+                    <div class="row"><span class="lbl">Premium Est.</span><span class="val">${b.premium_est}</span></div>
+                    <div class="row"><span class="lbl">Expected Points</span><span class="val green">${b.expected_points}</span></div></div>
+                    <div><div class="row"><span class="lbl">Entry</span><span class="val">${b.entry}</span></div>
+                    <div class="row"><span class="lbl">Stop Loss</span><span class="val red">${b.stop_loss}</span></div>
+                    <div class="row"><span class="lbl">Target</span><span class="val green">${b.target}</span></div>
+                    <div class="row"><span class="lbl">Confidence</span><span class="val">${b.confidence}%</span></div>
+                    <div class="row"><span class="lbl">Risk:Reward</span><span class="val">${b.risk_reward}</span></div></div>
+                </div>
+            </div>`;
+        }
+        html += '<div class="card"><h3>All Index Rankings</h3>';
+        (d.all_rankings||[]).forEach(r => {
+            html += `<div style="padding:8px 0;border-bottom:1px solid #1f2937;display:flex;justify-content:space-between;align-items:center;">
+                <div><strong>${r.index}</strong> <span style="font-size:0.72rem;color:#9ca3af;">₹${r.current_price}</span></div>
+                <div style="text-align:right;"><span class="val blue" style="font-size:0.82rem;">${r.direction}</span><br><span style="font-size:0.7rem;color:#6b7280;">Score: ${r.score} | Conf: ${r.confidence}%</span></div>
+            </div>`;
+        });
+        html += '</div>';
+        el.innerHTML = html;
+    }).catch(()=>{ el.innerHTML='<p class="red">Failed.</p>'; });
+}
+
+// Live Trade
+function loadLiveTrade(idx) {
+    const el = document.getElementById('liveTradeResult');
+    el.innerHTML = `<p style="color:#6b7280;font-size:0.8rem;">🔄 Scanning ${idx}... collecting live data, news, indicators, patterns...</p>`;
+
+    Promise.all([
+        fetch(`/api/options-with-usa?index=${idx}`).then(r=>r.json()),
+        fetch(`/api/intraday-signal/${idx}`).then(r=>r.json()),
+        fetch(`/api/candlestick-scan/${idx}`).then(r=>r.json()),
+        fetch(`/api/breakout/${idx}`).then(r=>r.json()),
+    ]).then(([options, intraday, candles, breakout]) => {
+        const o = options.options_analysis || {};
+        const rec = o.recommendation || {};
+        const adj = options.adjusted_recommendation || {};
+        const levels = o.levels || {};
+        const mom = o.momentum || {};
+        const vol = o.volatility || {};
+
+        const side = adj.side || rec.side || 'NEUTRAL';
+        const isCE = side === 'CE';
+        const cls = isCE ? 'buy' : side === 'PE' ? 'sell' : 'hold';
+        const price = o.current_price || 0;
+
+        // Calculate entry/exit strikes
+        const step = idx === 'BANKNIFTY' ? 100 : 50;
+        const atmStrike = Math.round(price / step) * step;
+        const entryStrike = isCE ? atmStrike : atmStrike;
+        const expectedPoints = vol.expected_daily_move || Math.round(price * 0.01);
+        const exitStrike = isCE ? atmStrike + step * 2 : atmStrike - step * 2;
+
+        // Entry/SL/Target from intraday
+        const entry = intraday.entry || price;
+        const sl = intraday.stop_loss || (isCE ? price - expectedPoints * 0.5 : price + expectedPoints * 0.5);
+        const t1 = intraday.target_1 || (isCE ? price + expectedPoints * 0.7 : price - expectedPoints * 0.7);
+        const t2 = intraday.target_2 || (isCE ? price + expectedPoints : price - expectedPoints);
+        const t3 = intraday.target_3 || (isCE ? price + expectedPoints * 1.5 : price - expectedPoints * 1.5);
+
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
+        const dateStr = now.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
+
+        let html = '';
+        html += `<div class="signal-banner ${cls}" style="margin-bottom:12px;">
+            <div class="left"><h2>${idx}</h2><p>₹${price.toLocaleString()} • ${dateStr} ${timeStr}</p></div>
+            <div class="right"><div class="rec ${cls}">${isCE ? '📈 BUY CE' : side === 'PE' ? '📉 BUY PE' : '⏸️ WAIT'}</div>
+            <p style="font-size:0.72rem;color:#9ca3af;">Confidence: ${adj.confidence || rec.confidence || '-'}%</p></div>
+        </div>`;
+
+        html += `<div class="card-grid">`;
+        html += `<div class="card" style="border-left:3px solid ${isCE?'#22c55e':'#ef4444'}"><h3>🎯 Entry & Exit — ${side}</h3>
+            <div class="row"><span class="lbl">Entry Strike</span><span class="val blue" style="font-size:1rem;font-weight:700;">${entryStrike} ${side}</span></div>
+            <div class="row"><span class="lbl">Entry Level</span><span class="val">${isCE ? 'Above' : 'Below'} ₹${Math.round(entry)}</span></div>
+            <div class="row"><span class="lbl">Stop Loss</span><span class="val red">₹${Math.round(sl)}</span></div>
+            <div class="row"><span class="lbl">Target 1</span><span class="val green">₹${Math.round(t1)}</span></div>
+            <div class="row"><span class="lbl">Target 2</span><span class="val green">₹${Math.round(t2)}</span></div>
+            <div class="row"><span class="lbl">Target 3</span><span class="val green">₹${Math.round(t3)}</span></div>
+            <div class="row"><span class="lbl">Exit Strike</span><span class="val" style="font-weight:700;">${exitStrike} ${side}</span></div>
+            <div class="row"><span class="lbl">Expected Points</span><span class="val green">+${Math.round(expectedPoints)} pts</span></div>
+            <div class="row"><span class="lbl">Risk:Reward</span><span class="val">${intraday.risk_reward || rec.risk_reward || '1:2'}</span></div>
+        </div>`;
+
+        html += `<div class="card"><h3>📊 Market Context</h3>
+            <div class="row"><span class="lbl">Trend</span><span class="val">${mom.intraday_bias || '-'}</span></div>
+            <div class="row"><span class="lbl">1D Return</span><span class="val ${(mom.return_1d||0)>0?'green':'red'}">${mom.return_1d||0}%</span></div>
+            <div class="row"><span class="lbl">Volatility</span><span class="val">${vol.volatility_regime || '-'} (HV: ${vol.hv_10 || '-'}%)</span></div>
+            <div class="row"><span class="lbl">Breakout</span><span class="val">${breakout.signal || '-'} (${breakout.breakout_probability || 0}%)</span></div>
+            <div class="row"><span class="lbl">Candle</span><span class="val">${candles.patterns && candles.patterns.length ? candles.patterns[0].pattern + ' → ' + candles.patterns[0].signal : 'No pattern'}</span></div>
+            <div class="row"><span class="lbl">USA Impact</span><span class="val">${options.usa_impact ? options.usa_impact.options_bias : '-'}</span></div>
+        </div>`;
+        html += `</div>`;
+
+        // Reasons
+        if (rec.reasons && rec.reasons.length) {
+            html += `<div class="card"><h3>Reasons</h3>`;
+            rec.reasons.forEach(r => { html += `<p style="font-size:0.73rem;color:#9ca3af;padding:2px 0;">• ${r}</p>`; });
+            html += `</div>`;
+        }
+
+        html += `<p style="font-size:0.68rem;color:#4b5563;margin-top:8px;">⚠️ Not financial advice. Markets are uncertain. Use stop loss. Generated at ${timeStr}.</p>`;
+        el.innerHTML = html;
+    }).catch(e => { el.innerHTML = `<p class="red">Error: ${e.message}</p>`; });
+}
+
+function loadLiveTradeAll() {
+    const el = document.getElementById('liveTradeResult');
+    el.innerHTML = '<p style="color:#6b7280;font-size:0.8rem;">🔄 Scanning NIFTY, BANKNIFTY, SENSEX...</p>';
+
+    Promise.all([
+        fetch('/api/best-trade-today').then(r=>r.json()),
+    ]).then(([data]) => {
+        if (data.error) { el.innerHTML = `<p class="red">${data.error}</p>`; return; }
+        const best = data.best_trade;
+        if (!best) { el.innerHTML = '<p style="color:#6b7280;">No clear trade setup found.</p>'; return; }
+
+        let html = `<div class="best-trade"><span class="trophy">🔥</span><h2>Live Trade: ${best.index} — ${best.direction}</h2>
+            <div class="card-grid" style="margin-top:12px;">
+                <div>
+                    <div class="row"><span class="lbl">Strike</span><span class="val blue" style="font-size:1rem;">${best.strike}</span></div>
+                    <div class="row"><span class="lbl">Entry</span><span class="val">₹${best.entry}</span></div>
+                    <div class="row"><span class="lbl">Stop Loss</span><span class="val red">₹${best.stop_loss}</span></div>
+                    <div class="row"><span class="lbl">Target</span><span class="val green">₹${best.target}</span></div>
+                </div>
+                <div>
+                    <div class="row"><span class="lbl">Expected Points</span><span class="val green">${best.expected_points}</span></div>
+                    <div class="row"><span class="lbl">Confidence</span><span class="val">${best.confidence}%</span></div>
+                    <div class="row"><span class="lbl">Risk:Reward</span><span class="val">${best.risk_reward}</span></div>
+                    <div class="row"><span class="lbl">RSI</span><span class="val">${best.rsi}</span></div>
+                </div>
+            </div>
+        </div>`;
+
+        // Show all rankings
+        html += '<div class="card"><h3>All Indices</h3>';
+        (data.all_rankings||[]).forEach(r => {
+            html += `<div style="padding:6px 0;border-bottom:1px solid #1f2937;display:flex;justify-content:space-between;">
+                <span><strong>${r.index}</strong> ₹${r.current_price.toLocaleString()}</span>
+                <span class="val blue">${r.direction} | ${r.strike}</span>
+            </div>`;
+        });
+        html += '</div>';
+        el.innerHTML = html;
+    }).catch(e => { el.innerHTML = `<p class="red">Failed: ${e.message}</p>`; });
+}
+
+// Chat
+function sendChat() {
+    const inp = document.getElementById('chatIn');
+    const msg = inp.value.trim(); if (!msg) return;
+    addMsg(msg,'user'); inp.value = '';
+    document.getElementById('typing').style.display = 'block';
+    document.getElementById('chatBtn').disabled = true;
+    scrollC();
+    fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})})
+    .then(r=>r.json()).then(d=>{
+        document.getElementById('typing').style.display='none';
+        document.getElementById('chatBtn').disabled=false;
+        addMsg(d.reply,'bot');
+    }).catch(()=>{document.getElementById('typing').style.display='none';document.getElementById('chatBtn').disabled=false;addMsg('Error. Try again.','bot');});
+}
+function qchat(t){document.getElementById('chatIn').value=t;sendChat();}
+function addMsg(t,s){const c=document.getElementById('chatMsgs');const d=document.createElement('div');d.className='cmsg '+s;if(s==='bot'){d.innerHTML=t.replace(/\*\*(.*?)\*\*/g,'<span class="b">$1</span>').replace(/\n/g,'<br>');}else{d.textContent=t;}c.appendChild(d);scrollC();}
+function scrollC(){const c=document.getElementById('chatMsgs');c.scrollTop=c.scrollHeight;}
+document.getElementById('chatIn').addEventListener('keypress',e=>{if(e.key==='Enter')sendChat();});
+document.getElementById('customStock').addEventListener('keypress',e=>{if(e.key==='Enter')runAnalysis();});
+
+// Helpers
+function show(id){document.getElementById(id).classList.add('active');document.getElementById(id).style.display='block';}
+function hide(id){document.getElementById(id).classList.remove('active');document.getElementById(id).style.display='none';}
+function showErr(m){const e=document.getElementById('errorMsg');e.textContent=m;e.style.display='block';}
+
+// Chat
+function sendChat() {
+    const inp = document.getElementById('chatIn');
+    const msg = inp.value.trim(); if (!msg) return;
+    addMsg(msg,'user'); inp.value = '';
+    document.getElementById('typing').style.display = 'block';
+    document.getElementById('chatBtn').disabled = true;
+    scrollC();
+    fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})})
+    .then(r=>r.json()).then(d=>{
+        document.getElementById('typing').style.display='none';
+        document.getElementById('chatBtn').disabled=false;
+        addMsg(d.reply,'bot');
+    }).catch(()=>{document.getElementById('typing').style.display='none';document.getElementById('chatBtn').disabled=false;addMsg('Error. Try again.','bot');});
+}
+function qchat(t){document.getElementById('chatIn').value=t;sendChat();}
+function addMsg(t,s){const c=document.getElementById('chatMsgs');const d=document.createElement('div');d.className='cmsg '+s;if(s==='bot'){d.innerHTML=t.replace(/\*\*(.*?)\*\*/g,'<span class="b">$1</span>').replace(/\n/g,'<br>');}else{d.textContent=t;}c.appendChild(d);scrollC();}
+function scrollC(){const c=document.getElementById('chatMsgs');c.scrollTop=c.scrollHeight;}
+
+// Scroll up/down buttons
+function scrollChatUp() { const c = document.getElementById('chatMsgs'); c.scrollTop -= 150; }
+function scrollChatDown() { const c = document.getElementById('chatMsgs'); c.scrollTop += 150; }
+
+// Float/Detach chat panel
+function toggleFloatChat() {
+    const panel = document.getElementById('chatPanel');
+    const btn = document.getElementById('chatReattachBtn');
+    if (panel.classList.contains('floating')) {
+        panel.classList.remove('floating');
+        panel.style.top = ''; panel.style.left = ''; panel.style.right = ''; panel.style.width = ''; panel.style.height = '';
+        btn.classList.remove('visible');
+    } else {
+        panel.classList.add('floating');
+        btn.classList.remove('visible');
+    }
+}
+
+// Drag to move chat panel when floating
+(function() {
+    const handle = document.getElementById('chatDragHandle');
+    const panel = document.getElementById('chatPanel');
+    let isDragging = false, startX, startY, startLeft, startTop;
+
+    handle.addEventListener('mousedown', function(e) {
+        if (!panel.classList.contains('floating')) return;
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        const rect = panel.getBoundingClientRect();
+        startLeft = rect.left;
+        startTop = rect.top;
+        panel.style.right = 'auto';
+        panel.style.left = startLeft + 'px';
+        panel.style.top = startTop + 'px';
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (!isDragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        panel.style.left = (startLeft + dx) + 'px';
+        panel.style.top = (startTop + dy) + 'px';
+    });
+
+    document.addEventListener('mouseup', function() { isDragging = false; });
+})();
+
+document.getElementById('chatIn').addEventListener('keypress',e=>{if(e.key==='Enter')sendChat();});
+document.getElementById('customStock').addEventListener('keypress',e=>{if(e.key==='Enter')runAnalysis();});
+</script>
+</body>
+</html>
