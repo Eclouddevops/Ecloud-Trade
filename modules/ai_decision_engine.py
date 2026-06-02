@@ -39,7 +39,7 @@ class AIDecisionEngine:
         low = df["low"]
         volume = df["volume"]
         open_p = df["open"]
-        price = float(close.iloc[-1])
+        price = round(float(close.iloc[-1]), 2)
 
         # ─── Multi-Timeframe Trend ──────────────────────────────────────
         tf_analysis = self._multi_timeframe_trend(df)
@@ -71,7 +71,7 @@ class AIDecisionEngine:
         trade = self._generate_trade(verdict, levels, volatility, price, symbol)
 
         return {
-            "symbol": symbol,
+            "symbol": symbol.upper(),
             "current_price": price,
             "timestamp": datetime.now().isoformat(),
             "verdict": verdict,
