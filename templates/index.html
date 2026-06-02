@@ -192,6 +192,7 @@
         <div class="sidebar-item" onclick="switchTab('tomorrow')"><span class="icon">🔮</span>Tomorrow</div>
         <div class="sidebar-item" onclick="switchTab('smarttrade')"><span class="icon">💎</span>Smart Trade</div>
         <div class="sidebar-item" onclick="switchTab('sentiment')"><span class="icon">🌡️</span>Sentiment</div>
+        <div class="sidebar-item" onclick="switchTab('deepai')"><span class="icon">🧬</span>AI Verdict</div>
     </nav>
     <!-- Main Content -->
     <main class="main">
@@ -387,6 +388,19 @@
                     <button class="btn btn-blue" onclick="loadSentiment('SENSEX')">SENSEX</button>
                 </div>
                 <div id="sentimentResult"></div>
+            </div>
+        </div>
+
+        <!-- AI Verdict Tab -->
+        <div class="tab-content" id="tab-deepai">
+            <div class="card"><h3>🧬 AI Decision Engine — Unified Verdict</h3>
+                <p style="font-size:0.75rem;color:#9ca3af;margin-bottom:12px;">Resolves conflicting signals. Priority: Higher TF → Price Action → Volume → Momentum → Trend Indicators.</p>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button class="btn btn-blue" onclick="loadDeepAI('NIFTY')">NIFTY</button>
+                    <button class="btn btn-blue" onclick="loadDeepAI('BANKNIFTY')">BANKNIFTY</button>
+                    <button class="btn btn-blue" onclick="loadDeepAI('SENSEX')">SENSEX</button>
+                </div>
+                <div id="deepAIResult"></div>
             </div>
         </div>
     </main>
@@ -994,6 +1008,83 @@ function loadSentiment(idx) {
             html += `<div class="pred"><div class="pred-bar"><div class="pred-fill" style="width:${v}%;background:${vc}"></div></div></div>`;
         }
         html += `</div>`;
+        el.innerHTML = html;
+    }).catch(e => { el.innerHTML = `<p class="red">Error: ${e.message}</p>`; });
+}
+
+// AI Verdict (Deep Analysis)
+function loadDeepAI(idx) {
+    const el = document.getElementById('deepAIResult');
+    el.innerHTML = '<p style="color:#6b7280;font-size:0.8rem;">🧬 Running AI Decision Engine on ' + idx + '... resolving conflicts...</p>';
+    fetch(`/api/deep-analysis/${idx}`).then(r=>r.json()).then(d => {
+        if (d.error) { el.innerHTML = `<p class="red">${d.error}</p>`; return; }
+        const v = d.verdict || {};
+        const t = d.trade_setup || {};
+        const a = d.analysis || {};
+        const levels = d.key_levels || {};
+        const cls = v.signal==='BUY'?'buy':v.signal==='SELL'?'sell':'hold';
+
+        let html = '';
+        // Verdict banner
+        html += `<div class="signal-banner ${cls}" style="margin-bottom:12px;">
+            <div class="left"><h2>${d.symbol} — AI VERDICT</h2><p>₹${d.current_price} • ${v.has_conflict?'⚠️ Conflicts Resolved':'✅ Aligned'}</p></div>
+            <div class="right"><div class="rec ${cls}">${v.signal} ${t.side||''}</div><p style="font-size:0.72rem;color:#9ca3af;">Confidence: ${v.confidence}% | Score: ${v.weighted_score}</p></div>
+        </div>`;
+
+        // Trade Setup
+        html += `<div class="card-grid">`;
+        html += `<div class="card" style="border-left:3px solid ${cls==='buy'?'#22c55e':'#ef4444'}"><h3>🎯 Final Trade Setup</h3>
+            <div class="row"><span class="lbl">Signal</span><span class="val ${cls}" style="font-weight:700;">${v.signal} (${v.direction})</span></div>
+            <div class="row"><span class="lbl">Strike</span><span class="val blue">${t.strike||'-'}</span></div>
+            <div class="row"><span class="lbl">Entry</span><span class="val">₹${t.entry||'-'}</span></div>
+            <div class="row"><span class="lbl">Stop Loss</span><span class="val red">₹${t.stop_loss||'-'}</span></div>
+            <div class="row"><span class="lbl">Target 1</span><span class="val green">₹${t.target_1||'-'}</span></div>
+            <div class="row"><span class="lbl">Target 2</span><span class="val green">₹${t.target_2||'-'}</span></div>
+            <div class="row"><span class="lbl">Target 3</span><span class="val green">₹${t.target_3||'-'}</span></div>
+            <div class="row"><span class="lbl">Risk:Reward</span><span class="val">${t.risk_reward||'-'}</span></div>
+            <div class="row"><span class="lbl">Expected Points</span><span class="val green">+${t.expected_points||0}</span></div>
+            <div class="row"><span class="lbl">Best CE</span><span class="val">${t.best_ce||'-'}</span></div>
+            <div class="row"><span class="lbl">Best PE</span><span class="val">${t.best_pe||'-'}</span></div>
+            <div class="row"><span class="lbl">Position Size</span><span class="val">${t.position_size||'-'}</span></div>
+        </div>`;
+
+        // Layer scores
+        const tf = a.timeframe_trend||{};
+        const pa = a.price_action||{};
+        const vol = a.volume||{};
+        const mom = a.momentum||{};
+        const ti = a.trend_indicators||{};
+        html += `<div class="card"><h3>📊 Signal Priority Analysis</h3>
+            <div class="row"><span class="lbl">P1 🕐 Higher TF</span><span class="val" style="color:${tf.score>0?'#22c55e':'#ef4444'}">${tf.dominant_trend} (${tf.score})</span></div>
+            <div class="row"><span class="lbl">P2 📐 Structure</span><span class="val" style="color:${pa.score>0?'#22c55e':'#ef4444'}">${pa.structure} (${pa.score})</span></div>
+            <div class="row"><span class="lbl">P3 📊 Volume</span><span class="val" style="color:${vol.score>0?'#22c55e':'#ef4444'}">${vol.confirmation} (${vol.score})</span></div>
+            <div class="row"><span class="lbl">P4 ⚡ Momentum</span><span class="val" style="color:${mom.score>0?'#22c55e':'#ef4444'}">${mom.direction} RSI:${mom.rsi} (${mom.score})</span></div>
+            <div class="row"><span class="lbl">P5 📉 Trend Ind</span><span class="val" style="color:${ti.score>0?'#22c55e':'#ef4444'}">EMA:${ti.ema_trend} VWAP:${ti.price_vs_vwap} (${ti.score})</span></div>
+            <div class="row"><span class="lbl">Conflicts</span><span class="val">${v.bullish_signals} bullish vs ${v.bearish_signals} bearish</span></div>
+        </div>`;
+        html += `</div>`;
+
+        // Key levels
+        html += `<div class="card-grid">`;
+        html += `<div class="card"><h3>Key Levels</h3>
+            <div class="row"><span class="lbl">Breakout</span><span class="val green">₹${levels.breakout_level||'-'}</span></div>
+            <div class="row"><span class="lbl">R2</span><span class="val red">₹${levels.resistance_2||'-'}</span></div>
+            <div class="row"><span class="lbl">R1</span><span class="val red">₹${levels.resistance_1||'-'}</span></div>
+            <div class="row"><span class="lbl">Pivot</span><span class="val yellow">₹${levels.pivot||'-'}</span></div>
+            <div class="row"><span class="lbl">S1</span><span class="val green">₹${levels.support_1||'-'}</span></div>
+            <div class="row"><span class="lbl">S2</span><span class="val green">₹${levels.support_2||'-'}</span></div>
+            <div class="row"><span class="lbl">Breakdown</span><span class="val red">₹${levels.breakdown_level||'-'}</span></div>
+        </div>`;
+
+        // Conflict log
+        html += `<div class="card"><h3>🧬 AI Decision Log</h3>`;
+        (d.conflict_resolution||[]).forEach(log => {
+            const color = log.includes('CONFLICT') ? '#ef4444' : log.includes('Resolution') ? '#60a5fa' : '#9ca3af';
+            html += `<p style="font-size:0.72rem;color:${color};padding:2px 0;">→ ${log}</p>`;
+        });
+        html += `<p style="margin-top:8px;font-size:0.68rem;color:#4b5563;">⚠️ Not financial advice. Use proper risk management.</p></div>`;
+        html += `</div>`;
+
         el.innerHTML = html;
     }).catch(e => { el.innerHTML = `<p class="red">Error: ${e.message}</p>`; });
 }

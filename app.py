@@ -18,6 +18,7 @@ from modules.breakout_probability import BreakoutProbability
 from modules.intraday_signals import IntradaySignalGenerator
 from modules.gainzalgo import GainzAlgoV2Alpha
 from modules.smart_predictions import SmartPredictor
+from modules.ai_decision_engine import AIDecisionEngine
 from config.settings import FLASK_SECRET_KEY, FLASK_DEBUG, FLASK_PORT, SAMPLE_STOCKS
 
 app = Flask(__name__)
@@ -31,6 +32,7 @@ breakout_calc = BreakoutProbability()
 intraday_gen = IntradaySignalGenerator()
 gainzalgo = GainzAlgoV2Alpha()
 smart_predictor = SmartPredictor()
+ai_engine = AIDecisionEngine()
 
 # Store recent analyses for chatbot context
 _chat_analysis_cache = {}
@@ -497,6 +499,21 @@ def market_sentiment(symbol: str):
         df = data_collector.get_stock_data(symbol, period="6mo")
         result = smart_predictor.calculate_sentiment(df)
         result["symbol"] = symbol
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/deep-analysis/<symbol>")
+def deep_analysis(symbol: str):
+    """
+    AI Decision Engine — resolves conflicting signals using priority logic.
+    Provides unified verdict with full conflict resolution log.
+    """
+    try:
+        symbol = symbol.upper()
+        df = data_collector.get_stock_data(symbol, period="6mo")
+        result = ai_engine.deep_analysis(df, symbol)
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
