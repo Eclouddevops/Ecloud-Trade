@@ -156,6 +156,8 @@
     <div class="topbar">
         <span class="logo">Ecloud-Trade</span>
         <div class="sep"></div>
+        <span id="liveTime" style="font-size:0.75rem;color:#9ca3af;font-variant-numeric:tabular-nums;min-width:170px;"></span>
+        <div class="sep"></div>
         <select id="stockSelect">
             <option value="">Select Stock</option>
             {% for stock in stocks %}<option value="{{ stock }}">{{ stock }}</option>{% endfor %}
@@ -430,7 +432,12 @@ function switchTab(tab) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
     document.getElementById('tab-' + tab).classList.add('active');
-    event.target.closest('.sidebar-item')?.classList.add('active');
+    // Highlight sidebar item if called from click
+    document.querySelectorAll('.sidebar-item').forEach(s => {
+        if (s.getAttribute('onclick') && s.getAttribute('onclick').includes("'" + tab + "'")) {
+            s.classList.add('active');
+        }
+    });
 }
 
 // Main Analysis
@@ -1179,6 +1186,33 @@ document.getElementById('customStock').addEventListener('keypress',e=>{if(e.key=
 function show(id){document.getElementById(id).classList.add('active');document.getElementById(id).style.display='block';}
 function hide(id){document.getElementById(id).classList.remove('active');document.getElementById(id).style.display='none';}
 function showErr(m){const e=document.getElementById('errorMsg');e.textContent=m;e.style.display='block';}
+
+// Live IST Clock (NTP synced)
+(function() {
+    let ntpOffset = 0;
+    function syncNTP() {
+        const t0 = Date.now();
+        fetch('https://worldtimeapi.org/api/timezone/Asia/Kolkata')
+            .then(r => r.json())
+            .then(data => {
+                const t1 = Date.now();
+                const serverTime = new Date(data.datetime).getTime();
+                const roundTrip = (t1 - t0) / 2;
+                ntpOffset = serverTime - t1 + roundTrip;
+            })
+            .catch(() => { ntpOffset = 0; }); // Fallback to local time
+    }
+    function updateClock() {
+        const now = new Date(Date.now() + ntpOffset);
+        const options = { timeZone: 'Asia/Kolkata', weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+        const formatted = now.toLocaleString('en-IN', options) + ' IST';
+        document.getElementById('liveTime').textContent = formatted;
+    }
+    syncNTP();
+    setInterval(syncNTP, 300000); // Re-sync every 5 minutes
+    setInterval(updateClock, 1000); // Update display every second
+    updateClock();
+})();
 
 // Chat
 function sendChat() {
