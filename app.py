@@ -675,7 +675,7 @@ def _process_chat_message(message: str) -> tuple:
 
             response += "📊 **All Index Rankings:**\n"
             for r in results:
-                response += f"• {r['index']} ₹{r['price']:,.2f} → {r['direction']} (Score: {r['score']}, Conf: {r['confidence']}%)\n"
+                response += f"• {r['index']} ₹{r['price']:,.2f} → {r['direction']} | Strike: {r['strike']} | Score: {r['score']}, Conf: {r['confidence']}%\n"
 
             response += "\n⚠️ Not financial advice. Use proper risk management."
             return response, None
