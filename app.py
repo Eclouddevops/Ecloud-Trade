@@ -19,10 +19,48 @@ from modules.intraday_signals import IntradaySignalGenerator
 from modules.gainzalgo import GainzAlgoV2Alpha
 from modules.smart_predictions import SmartPredictor
 from modules.ai_decision_engine import AIDecisionEngine
+from modules.broker_adapters import BrokerManager
+from modules.nse_live import NSELiveData
 from config.settings import FLASK_SECRET_KEY, FLASK_DEBUG, FLASK_PORT, SAMPLE_STOCKS
 
 app = Flask(__name__)
 app.secret_key = FLASK_SECRET_KEY
+app.config['JSON_SORT_KEYS'] = False
+
+
+# Fix NaN in JSON responses
+import math as _math
+
+
+def _sanitize_for_json(obj):
+    """Recursively sanitize data for JSON serialization (removes NaN/Infinity)."""
+    if isinstance(obj, float):
+        if _math.isnan(obj) or _math.isinf(obj):
+            return 0
+        return obj
+    elif isinstance(obj, dict):
+        return {k: _sanitize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_sanitize_for_json(v) for v in obj]
+    else:
+        try:
+            import numpy as np
+            if isinstance(obj, (np.integer,)):
+                return int(obj)
+            if isinstance(obj, (np.floating,)):
+                if np.isnan(obj) or np.isinf(obj):
+                    return 0
+                return float(obj)
+            if isinstance(obj, (np.bool_,)):
+                return bool(obj)
+        except (ImportError, TypeError):
+            pass
+    return obj
+
+
+def safe_jsonify(data):
+    """jsonify wrapper that handles NaN and numpy types."""
+    return jsonify(_sanitize_for_json(data))
 
 analyzer = StockAnalyzer()
 usa_news_analyzer = USANewsAnalyzer()
@@ -33,6 +71,8 @@ intraday_gen = IntradaySignalGenerator()
 gainzalgo = GainzAlgoV2Alpha()
 smart_predictor = SmartPredictor()
 ai_engine = AIDecisionEngine()
+broker_mgr = BrokerManager()
+nse_live = NSELiveData()
 
 # Store recent analyses for chatbot context
 _chat_analysis_cache = {}
@@ -193,21 +233,31 @@ def options_with_usa():
     Adjusts CE/PE recommendation based on US market cues.
     """
     try:
+        import math
+
         # Get base options analysis
         index_name = request.args.get("index", "NIFTY").upper()
         options_result = options_analyzer.analyze_index_options(index_name)
 
         # Get USA news impact
-        usa_data = usa_news_analyzer.get_complete_usa_analysis()
-        _usa_news_cache["latest"] = usa_data
+        try:
+            usa_data = usa_news_analyzer.get_complete_usa_analysis()
+            _usa_news_cache["latest"] = usa_data
+            usa_score = usa_data.get("combined_score", 0)
+        except Exception:
+            usa_data = {"combined_score": 0, "usa_news": {"overall_sentiment": "N/A"}, "president_news": {"sentiment": "N/A"}, "us_markets": {}, "options_bias": "Neutral", "recommendation": ""}
+            usa_score = 0
 
-        # Adjust options recommendation based on USA sentiment
-        usa_score = usa_data["combined_score"]
+        # Sanitize scores (replace NaN/None with 0)
         original_score = options_result.get("recommendation", {}).get("score", 0)
+        if original_score is None or (isinstance(original_score, float) and math.isnan(original_score)):
+            original_score = 0
+        if usa_score is None or (isinstance(usa_score, float) and math.isnan(usa_score)):
+            usa_score = 0
 
         # USA sentiment adds/subtracts up to 2 points from options score
-        usa_adjustment = max(-2, min(2, usa_score * 10))
-        adjusted_score = original_score + usa_adjustment
+        usa_adjustment = max(-2, min(2, float(usa_score) * 10))
+        adjusted_score = float(original_score) + usa_adjustment
 
         # Recalculate side based on adjusted score
         if adjusted_score >= 4:
@@ -224,25 +274,25 @@ def options_with_usa():
         enhanced_result = {
             "options_analysis": options_result,
             "usa_impact": {
-                "usa_sentiment": usa_data["usa_news"]["overall_sentiment"],
-                "usa_score": usa_data["combined_score"],
-                "president_sentiment": usa_data["president_news"]["sentiment"],
-                "us_market_mood": usa_data["us_markets"].get("us_market_mood", "Unknown"),
+                "usa_sentiment": usa_data.get("usa_news", {}).get("overall_sentiment", "N/A"),
+                "usa_score": round(float(usa_score), 4),
+                "president_sentiment": usa_data.get("president_news", {}).get("sentiment", "N/A"),
+                "us_market_mood": usa_data.get("us_markets", {}).get("us_market_mood", "Unknown"),
                 "adjustment_applied": round(usa_adjustment, 2),
-                "options_bias": usa_data["options_bias"],
+                "options_bias": usa_data.get("options_bias", "Neutral"),
             },
             "adjusted_recommendation": {
                 "side": adjusted_side,
                 "action": f"BUY {adjusted_side}" if adjusted_side != "NEUTRAL" else "NO TRADE - WAIT",
                 "confidence": confidence,
-                "original_score": round(original_score, 1),
-                "adjusted_score": round(adjusted_score, 1),
+                "original_score": round(float(original_score), 1),
+                "adjusted_score": round(float(adjusted_score), 1),
                 "reason": f"Original score {original_score:.1f} adjusted by {usa_adjustment:+.1f} based on USA cues",
             },
-            "usa_recommendation": usa_data["recommendation"],
+            "usa_recommendation": usa_data.get("recommendation", ""),
         }
 
-        return jsonify(enhanced_result)
+        return safe_jsonify(enhanced_result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -340,7 +390,7 @@ def breakout_probability(symbol: str):
         result = breakout_calc.calculate(df)
         result["symbol"] = symbol
         result["current_price"] = round(df["close"].iloc[-1], 2)
-        return jsonify(result)
+        return safe_jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -462,7 +512,7 @@ def gainzalgo_signal(symbol: str):
         symbol = symbol.upper()
         df = data_collector.get_stock_data(symbol, period="6mo")
         result = gainzalgo.analyze(df, symbol)
-        return jsonify(result)
+        return safe_jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -514,7 +564,36 @@ def deep_analysis(symbol: str):
         symbol = symbol.upper()
         df = data_collector.get_stock_data(symbol, period="6mo")
         result = ai_engine.deep_analysis(df, symbol)
+        return safe_jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/live-prices")
+def live_prices():
+    """
+    Real-time prices from NSE India (primary) or broker API (if configured).
+    No API key needed for NSE direct data.
+    Falls back to broker/Yahoo only if NSE fails.
+    """
+    try:
+        # Try NSE Live first (free, real-time)
+        result = nse_live.get_live_prices()
+        if "error" not in result and ("NIFTY" in result or "BANKNIFTY" in result):
+            return jsonify(result)
+
+        # Fallback to broker manager
+        result = broker_mgr.get_live_prices()
         return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/broker-status")
+def broker_status():
+    """Check which broker is active and configured."""
+    try:
+        return jsonify(broker_mgr.get_status())
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

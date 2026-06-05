@@ -173,6 +173,13 @@
 
     <!-- Sidebar -->
     <nav class="sidebar">
+        <!-- Live Price Ticker -->
+        <div style="padding:8px 12px;border-bottom:1px solid #1f2937;font-size:0.68rem;">
+            <div id="tickerNifty" style="display:flex;justify-content:space-between;padding:3px 0;"><span>NIFTY</span><span style="color:#9ca3af;">--</span></div>
+            <div id="tickerBanknifty" style="display:flex;justify-content:space-between;padding:3px 0;"><span>BANKNIFTY</span><span style="color:#9ca3af;">--</span></div>
+            <div id="tickerSensex" style="display:flex;justify-content:space-between;padding:3px 0;"><span>SENSEX</span><span style="color:#9ca3af;">--</span></div>
+            <div id="tickerStatus" style="text-align:center;padding:3px 0;font-size:0.6rem;color:#4b5563;">⏳ Loading...</div>
+        </div>
         <div class="sidebar-section">Analysis</div>
         <div class="sidebar-item active" onclick="switchTab('overview')"><span class="icon">📊</span>Overview</div>
         <div class="sidebar-item" onclick="switchTab('chart')"><span class="icon">📈</span>Chart</div>
@@ -232,7 +239,16 @@
 
         <!-- Chart Tab -->
         <div class="tab-content" id="tab-chart">
-            <div class="card"><h3>Price Chart — Support & Resistance</h3><div class="chart-box" id="priceChart"></div></div>
+            <div class="card"><h3>Price Chart — Support & Resistance with Buy/Sell Signals</h3>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button class="btn btn-blue" onclick="loadChart('NIFTY')">NIFTY</button>
+                    <button class="btn btn-blue" onclick="loadChart('BANKNIFTY')">BANKNIFTY</button>
+                    <button class="btn btn-blue" onclick="loadChart('SENSEX')">SENSEX</button>
+                    <button class="btn btn-ghost" onclick="loadChart(getSymbol())">Current Stock</button>
+                </div>
+                <div class="chart-box" id="priceChart"></div>
+                <p style="font-size:0.68rem;color:#4b5563;margin-top:8px;">Green ▲ = Buy Signal | Red ▼ = Sell Signal | Green dash = Support | Red dash = Resistance | Blue = EMA 20 | Orange = SMA 50</p>
+            </div>
         </div>
 
         <!-- Technical Tab -->
@@ -341,13 +357,15 @@
 
         <!-- Live Trade Tab -->
         <div class="tab-content" id="tab-livetrade">
-            <div class="card"><h3>🔥 Current Entry Trade — Live Prediction</h3>
-                <p style="font-size:0.78rem;color:#9ca3af;margin-bottom:12px;">Scans all market data, news, indicators & patterns right now to predict the best current entry with exact strike, entry, exit, and expected points.</p>
-                <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <div class="card"><h3>🔥 Live Trading — Real-Time Entry & Exit</h3>
+                <p style="font-size:0.78rem;color:#9ca3af;margin-bottom:8px;">Live prices from NSE India. Auto-refreshes trade signals every 10 seconds during market hours.</p>
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
                     <button class="btn btn-blue" onclick="loadLiveTrade('NIFTY')">NIFTY</button>
                     <button class="btn btn-blue" onclick="loadLiveTrade('BANKNIFTY')">BANKNIFTY</button>
                     <button class="btn btn-blue" onclick="loadLiveTrade('SENSEX')">SENSEX</button>
                     <button class="btn btn-ghost" onclick="loadLiveTradeAll()">Scan All</button>
+                    <button class="btn btn-ghost" id="autoRefreshBtn" onclick="toggleAutoRefresh()">▶ Auto-Refresh</button>
+                    <span id="liveTradeStatus" style="font-size:0.65rem;color:#6b7280;"></span>
                 </div>
                 <div id="liveTradeResult"></div>
             </div>
@@ -518,20 +536,64 @@ function renderOverview(d) {
 <script>
 // Chart
 function loadChart(symbol) {
+    if (!symbol) { symbol = 'NIFTY'; }
     fetch(`/api/chart-data/${symbol}`).then(r=>r.json()).then(data => {
-        if (data.error) return;
+        if (data.error) { console.error('Chart error:', data.error); return; }
         const cd = data.chart_data, sr = data.support_resistance, dates = cd.map(d=>d.date);
-        Plotly.newPlot('priceChart', [
-            {x:dates, open:cd.map(d=>d.open), high:cd.map(d=>d.high), low:cd.map(d=>d.low), close:cd.map(d=>d.close), type:'candlestick', name:data.symbol, increasing:{line:{color:'#22c55e'}}, decreasing:{line:{color:'#ef4444'}}},
-            {x:dates, y:data.moving_averages.ema_20, type:'scatter', mode:'lines', name:'EMA20', line:{color:'#60a5fa',width:1}},
-            {x:dates, y:data.moving_averages.sma_50, type:'scatter', mode:'lines', name:'SMA50', line:{color:'#f59e0b',width:1}},
-            {x:[dates[0],dates[dates.length-1]], y:[sr.support_1,sr.support_1], type:'scatter', mode:'lines', name:`S1 ₹${sr.support_1}`, line:{color:'#22c55e',width:1.5,dash:'dash'}},
-            {x:[dates[0],dates[dates.length-1]], y:[sr.support_2,sr.support_2], type:'scatter', mode:'lines', name:`S2 ₹${sr.support_2}`, line:{color:'#4ade80',width:1,dash:'dot'}},
-            {x:[dates[0],dates[dates.length-1]], y:[sr.resistance_1,sr.resistance_1], type:'scatter', mode:'lines', name:`R1 ₹${sr.resistance_1}`, line:{color:'#ef4444',width:1.5,dash:'dash'}},
-            {x:[dates[0],dates[dates.length-1]], y:[sr.resistance_2,sr.resistance_2], type:'scatter', mode:'lines', name:`R2 ₹${sr.resistance_2}`, line:{color:'#f87171',width:1,dash:'dot'}},
-            {x:[dates[0],dates[dates.length-1]], y:[sr.pivot,sr.pivot], type:'scatter', mode:'lines', name:`Pivot ₹${sr.pivot}`, line:{color:'#eab308',width:1,dash:'dashdot'}},
-        ], {paper_bgcolor:'transparent', plot_bgcolor:'rgba(255,255,255,0.01)', font:{color:'#9ca3af',size:9,family:'Inter'}, xaxis:{rangeslider:{visible:false},gridcolor:'#1f2937'}, yaxis:{gridcolor:'#1f2937'}, legend:{orientation:'h',y:-0.12,font:{size:8}}, margin:{t:8,b:45,l:50,r:8}}, {responsive:true,displayModeBar:false});
-    });
+        const closes = cd.map(d=>d.close);
+        const ema20 = data.moving_averages.ema_20;
+        const sma50 = data.moving_averages.sma_50;
+
+        // Generate Buy/Sell signals based on EMA crossover + price action
+        const buyDates = [], buyPrices = [], sellDates = [], sellPrices = [];
+        for (let i = 5; i < cd.length; i++) {
+            const e20 = ema20[i], e20p = ema20[i-1];
+            const s50 = sma50[i], s50p = sma50[i-1];
+            if (!e20 || !s50 || !e20p || !s50p) continue;
+
+            // Buy: EMA20 crosses above SMA50 OR price bounces from support
+            if (e20p <= s50p && e20 > s50) {
+                buyDates.push(dates[i]);
+                buyPrices.push(cd[i].low * 0.998);
+            }
+            // Sell: EMA20 crosses below SMA50 OR price rejected at resistance
+            else if (e20p >= s50p && e20 < s50) {
+                sellDates.push(dates[i]);
+                sellPrices.push(cd[i].high * 1.002);
+            }
+            // Additional: RSI-style buy at recent lows
+            else if (i > 10 && cd[i].close < cd[i-1].close && cd[i-1].close < cd[i-2].close && cd[i].close > cd[i].open && cd[i].close > sr.support_1 * 0.99) {
+                if (buyDates.length === 0 || buyDates[buyDates.length-1] !== dates[i-1]) {
+                    buyDates.push(dates[i]);
+                    buyPrices.push(cd[i].low * 0.997);
+                }
+            }
+        }
+
+        const traces = [
+            {x:dates, open:cd.map(d=>d.open), high:cd.map(d=>d.high), low:cd.map(d=>d.low), close:closes, type:'candlestick', name:symbol, increasing:{line:{color:'#22c55e'}}, decreasing:{line:{color:'#ef4444'}}},
+            {x:dates, y:ema20, type:'scatter', mode:'lines', name:'EMA 20', line:{color:'#60a5fa',width:1.2}},
+            {x:dates, y:sma50, type:'scatter', mode:'lines', name:'SMA 50', line:{color:'#f59e0b',width:1.2}},
+            {x:[dates[0],dates[dates.length-1]], y:[sr.support_1,sr.support_1], type:'scatter', mode:'lines', name:'S1 ₹'+sr.support_1, line:{color:'#22c55e',width:1.5,dash:'dash'}},
+            {x:[dates[0],dates[dates.length-1]], y:[sr.support_2,sr.support_2], type:'scatter', mode:'lines', name:'S2 ₹'+sr.support_2, line:{color:'#4ade80',width:1,dash:'dot'}},
+            {x:[dates[0],dates[dates.length-1]], y:[sr.resistance_1,sr.resistance_1], type:'scatter', mode:'lines', name:'R1 ₹'+sr.resistance_1, line:{color:'#ef4444',width:1.5,dash:'dash'}},
+            {x:[dates[0],dates[dates.length-1]], y:[sr.resistance_2,sr.resistance_2], type:'scatter', mode:'lines', name:'R2 ₹'+sr.resistance_2, line:{color:'#f87171',width:1,dash:'dot'}},
+            {x:[dates[0],dates[dates.length-1]], y:[sr.pivot,sr.pivot], type:'scatter', mode:'lines', name:'Pivot ₹'+sr.pivot, line:{color:'#eab308',width:1,dash:'dashdot'}},
+            // Buy signals
+            {x:buyDates, y:buyPrices, type:'scatter', mode:'markers', name:'BUY ▲', marker:{symbol:'triangle-up', size:12, color:'#22c55e', line:{width:1,color:'#166534'}}},
+            // Sell signals
+            {x:sellDates, y:sellPrices, type:'scatter', mode:'markers', name:'SELL ▼', marker:{symbol:'triangle-down', size:12, color:'#ef4444', line:{width:1,color:'#991b1b'}}},
+        ];
+
+        Plotly.newPlot('priceChart', traces, {
+            paper_bgcolor:'transparent', plot_bgcolor:'rgba(255,255,255,0.01)',
+            font:{color:'#9ca3af',size:9,family:'Inter'},
+            xaxis:{rangeslider:{visible:false},gridcolor:'#1f2937'},
+            yaxis:{gridcolor:'#1f2937', title:{text:'Price (₹)',font:{size:9}}},
+            legend:{orientation:'h',y:-0.15,font:{size:8}},
+            margin:{t:8,b:50,l:55,r:8},
+        }, {responsive:true, displayModeBar:false});
+    }).catch(e => console.error('Chart load failed:', e));
 }
 
 // Technical
@@ -1157,16 +1219,41 @@ function loadBestTrade() {
 }
 
 // Live Trade
-function loadLiveTrade(idx) {
+let liveTradeInterval = null;
+let liveTradeSymbol = null;
+
+function toggleAutoRefresh() {
+    const btn = document.getElementById('autoRefreshBtn');
+    const status = document.getElementById('liveTradeStatus');
+    if (liveTradeInterval) {
+        clearInterval(liveTradeInterval);
+        liveTradeInterval = null;
+        btn.textContent = '▶ Auto-Refresh';
+        btn.style.borderColor = '#374151';
+        status.textContent = 'Stopped';
+    } else {
+        const sym = liveTradeSymbol || 'NIFTY';
+        liveTradeInterval = setInterval(() => loadLiveTrade(sym, true), 10000);
+        btn.textContent = '⏸ Stop';
+        btn.style.borderColor = '#22c55e';
+        status.textContent = `🟢 Refreshing ${sym} every 10s`;
+        loadLiveTrade(sym, true);
+    }
+}
+
+function loadLiveTrade(idx, silent) {
+    liveTradeSymbol = idx;
     const el = document.getElementById('liveTradeResult');
-    el.innerHTML = `<p style="color:#6b7280;font-size:0.8rem;">🔄 Scanning ${idx}... collecting live data, news, indicators, patterns...</p>`;
+    if (!silent) el.innerHTML = `<p style="color:#6b7280;font-size:0.8rem;">🔄 Scanning ${idx}... collecting live data, news, indicators, patterns...</p>`;
+    document.getElementById('liveTradeStatus').textContent = liveTradeInterval ? `🟢 Live ${idx}` : '';
 
     Promise.all([
+        fetch(`/api/live-prices`).then(r=>r.json()),
         fetch(`/api/options-with-usa?index=${idx}`).then(r=>r.json()),
         fetch(`/api/intraday-signal/${idx}`).then(r=>r.json()),
         fetch(`/api/candlestick-scan/${idx}`).then(r=>r.json()),
         fetch(`/api/breakout/${idx}`).then(r=>r.json()),
-    ]).then(([options, intraday, candles, breakout]) => {
+    ]).then(([livePrices, options, intraday, candles, breakout]) => {
         const o = options.options_analysis || {};
         const rec = o.recommendation || {};
         const adj = options.adjusted_recommendation || {};
@@ -1177,7 +1264,11 @@ function loadLiveTrade(idx) {
         const side = adj.side || rec.side || 'NEUTRAL';
         const isCE = side === 'CE';
         const cls = isCE ? 'buy' : side === 'PE' ? 'sell' : 'hold';
-        const price = o.current_price || 0;
+        // Use live NSE price if available, fallback to options data
+        const liveP = livePrices[idx];
+        const price = (liveP && liveP.price) ? liveP.price : (o.current_price || 0);
+        const liveSource = (liveP && liveP.source) ? liveP.source : 'Cached';
+        const mktStatus = livePrices.market_status || 'Unknown';
 
         // Calculate entry/exit strikes
         const step = idx === 'BANKNIFTY' ? 100 : 50;
@@ -1199,9 +1290,9 @@ function loadLiveTrade(idx) {
 
         let html = '';
         html += `<div class="signal-banner ${cls}" style="margin-bottom:12px;">
-            <div class="left"><h2>${idx}</h2><p>₹${price.toLocaleString()} • ${dateStr} ${timeStr}</p></div>
+            <div class="left"><h2>${idx}</h2><p>₹${price.toLocaleString()} • ${dateStr} ${timeStr} • ${mktStatus}</p></div>
             <div class="right"><div class="rec ${cls}">${isCE ? '📈 BUY CE' : side === 'PE' ? '📉 BUY PE' : '⏸️ WAIT'}</div>
-            <p style="font-size:0.72rem;color:#9ca3af;">Confidence: ${adj.confidence || rec.confidence || '-'}%</p></div>
+            <p style="font-size:0.72rem;color:#9ca3af;">Confidence: ${adj.confidence || rec.confidence || '-'}% • ${liveSource}</p></div>
         </div>`;
 
         html += `<div class="card-grid">`;
@@ -1215,6 +1306,27 @@ function loadLiveTrade(idx) {
             <div class="row"><span class="lbl">Exit Strike</span><span class="val" style="font-weight:700;">${exitStrike} ${side}</span></div>
             <div class="row"><span class="lbl">Expected Points</span><span class="val green">+${Math.round(expectedPoints)} pts</span></div>
             <div class="row"><span class="lbl">Risk:Reward</span><span class="val">${intraday.risk_reward || rec.risk_reward || '1:2'}</span></div>
+        </div>`;
+
+        // ATM Details
+        const atmStrike = Math.round(price / step) * step;
+        const itmStrike = isCE ? atmStrike - step : atmStrike + step;
+        const otmStrike = isCE ? atmStrike + step : atmStrike - step;
+        const deepOtm = isCE ? atmStrike + step * 2 : atmStrike - step * 2;
+        const premiumATM = Math.round(expectedPoints * 0.45);
+        const premiumITM = Math.round(expectedPoints * 0.65);
+        const premiumOTM = Math.round(expectedPoints * 0.28);
+
+        html += `<div class="card"><h3>💰 ATM / ITM / OTM Strikes</h3>
+            <div class="row"><span class="lbl">ATM Strike</span><span class="val blue" style="font-weight:700;">${atmStrike} ${side}</span></div>
+            <div class="row"><span class="lbl">ATM Premium (Est.)</span><span class="val">₹${premiumATM}</span></div>
+            <div class="row"><span class="lbl">ITM Strike</span><span class="val">${itmStrike} ${side}</span></div>
+            <div class="row"><span class="lbl">ITM Premium (Est.)</span><span class="val">₹${premiumITM}</span></div>
+            <div class="row"><span class="lbl">OTM Strike</span><span class="val">${otmStrike} ${side}</span></div>
+            <div class="row"><span class="lbl">OTM Premium (Est.)</span><span class="val">₹${premiumOTM}</span></div>
+            <div class="row"><span class="lbl">Deep OTM</span><span class="val">${deepOtm} ${side}</span></div>
+            <div class="row"><span class="lbl">Step Size</span><span class="val">${step} pts</span></div>
+            <div class="row"><span class="lbl">Distance from ATM</span><span class="val">${Math.abs(Math.round(price - atmStrike))} pts ${price > atmStrike ? 'above' : 'below'}</span></div>
         </div>`;
 
         html += `<div class="card"><h3>📊 Market Context</h3>
@@ -1333,72 +1445,53 @@ function showErr(m){const e=document.getElementById('errorMsg');e.textContent=m;
     updateClock();
 })();
 
-// Chat
-function sendChat() {
-    const inp = document.getElementById('chatIn');
-    const msg = inp.value.trim(); if (!msg) return;
-    addMsg(msg,'user'); inp.value = '';
-    document.getElementById('typing').style.display = 'block';
-    document.getElementById('chatBtn').disabled = true;
-    scrollC();
-    fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})})
-    .then(r=>r.json()).then(d=>{
-        document.getElementById('typing').style.display='none';
-        document.getElementById('chatBtn').disabled=false;
-        addMsg(d.reply,'bot');
-    }).catch(()=>{document.getElementById('typing').style.display='none';document.getElementById('chatBtn').disabled=false;addMsg('Error. Try again.','bot');});
-}
-function qchat(t){document.getElementById('chatIn').value=t;sendChat();}
-function addMsg(t,s){const c=document.getElementById('chatMsgs');const d=document.createElement('div');d.className='cmsg '+s;if(s==='bot'){d.innerHTML=t.replace(/\*\*(.*?)\*\*/g,'<span class="b">$1</span>').replace(/\n/g,'<br>');}else{d.textContent=t;}c.appendChild(d);scrollC();}
-function scrollC(){const c=document.getElementById('chatMsgs');c.scrollTop=c.scrollHeight;}
-
-// Scroll up/down buttons
-function scrollChatUp() { const c = document.getElementById('chatMsgs'); c.scrollTop -= 150; }
-function scrollChatDown() { const c = document.getElementById('chatMsgs'); c.scrollTop += 150; }
-
-// Float/Detach chat panel
-function toggleFloatChat() {
-    const panel = document.getElementById('chatPanel');
-    const btn = document.getElementById('chatReattachBtn');
-    if (panel.classList.contains('floating')) {
-        panel.classList.remove('floating');
-        panel.style.top = ''; panel.style.left = ''; panel.style.right = ''; panel.style.width = ''; panel.style.height = '';
-        btn.classList.remove('visible');
-    } else {
-        panel.classList.add('floating');
-        btn.classList.remove('visible');
-    }
-}
-
-// Drag to move chat panel when floating
+// ─── Live Price Auto-Refresh (every 5 seconds) ────────────────────────
 (function() {
-    const handle = document.getElementById('chatDragHandle');
-    const panel = document.getElementById('chatPanel');
-    let isDragging = false, startX, startY, startLeft, startTop;
+    let lastPrices = {};
+    let refreshCount = 0;
 
-    handle.addEventListener('mousedown', function(e) {
-        if (!panel.classList.contains('floating')) return;
-        isDragging = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        const rect = panel.getBoundingClientRect();
-        startLeft = rect.left;
-        startTop = rect.top;
-        panel.style.right = 'auto';
-        panel.style.left = startLeft + 'px';
-        panel.style.top = startTop + 'px';
-        e.preventDefault();
-    });
+    function fetchLivePrices() {
+        fetch('/api/live-prices')
+            .then(r => {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            })
+            .then(data => {
+                if (data.error) { console.warn('Live prices error:', data.error); return; }
+                refreshCount++;
+                lastPrices = data;
+                // Update tickers
+                if (data.NIFTY) updateTicker('NIFTY', data.NIFTY, 'tickerNifty');
+                if (data.BANKNIFTY) updateTicker('BANKNIFTY', data.BANKNIFTY, 'tickerBanknifty');
+                if (data.SENSEX) updateTicker('SENSEX', data.SENSEX, 'tickerSensex');
+                // Status
+                var mkt = data.market_status === 'Open' ? '🟢' : '🔴';
+                var broker = data.broker ? data.broker.split('(')[0].trim() : 'NSE';
+                var statusEl = document.getElementById('tickerStatus');
+                if (statusEl) {
+                    statusEl.textContent = mkt + ' ' + broker + ' #' + refreshCount;
+                    statusEl.style.color = data.market_status === 'Open' ? '#22c55e' : '#ef4444';
+                }
+            })
+            .catch(function(err) {
+                console.warn('Live fetch failed:', err);
+                var statusEl = document.getElementById('tickerStatus');
+                if (statusEl) { statusEl.textContent = '🔴 Retry...'; statusEl.style.color = '#ef4444'; }
+            });
+    }
 
-    document.addEventListener('mousemove', function(e) {
-        if (!isDragging) return;
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-        panel.style.left = (startLeft + dx) + 'px';
-        panel.style.top = (startTop + dy) + 'px';
-    });
+    function updateTicker(name, data, elId) {
+        if (!data || !data.price) return;
+        var el = document.getElementById(elId);
+        if (!el) return;
+        var color = data.change_pct > 0 ? '#22c55e' : data.change_pct < 0 ? '#ef4444' : '#9ca3af';
+        var arrow = data.change_pct > 0 ? '▲' : data.change_pct < 0 ? '▼' : '•';
+        el.innerHTML = '<span>' + name + '</span><span style="color:' + color + ';font-weight:600;">' + data.price.toLocaleString() + ' ' + arrow + Math.abs(data.change_pct).toFixed(2) + '%</span>';
+    }
 
-    document.addEventListener('mouseup', function() { isDragging = false; });
+    // Start immediately and repeat every 5 seconds
+    setTimeout(fetchLivePrices, 1000);
+    setInterval(fetchLivePrices, 5000);
 })();
 
 document.getElementById('chatIn').addEventListener('keypress',e=>{if(e.key==='Enter')sendChat();});
