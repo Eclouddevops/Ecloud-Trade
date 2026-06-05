@@ -18,3 +18,16 @@ data/cache/
 .idea/
 .vscode/
 *.log
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/*.tfplan
+terraform/ecloud-trade-key
+terraform/ecloud-trade-key.pub
+terraform/.terraform.lock.hcl
+
+# Deployment
+*.pem
+_test.html

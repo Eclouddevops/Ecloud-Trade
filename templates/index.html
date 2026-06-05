@@ -169,6 +169,7 @@
         <button class="btn btn-blue" id="analyzeBtn" onclick="runAnalysis()">Analyze</button>
         <button class="btn btn-red" onclick="loadBestTrade()">🏆 Best Trade</button>
         <button class="btn btn-ghost" onclick="loadUSA()">📰 News</button>
+        <button class="btn btn-blue" onclick="openBuySell()" style="background:linear-gradient(135deg,#22c55e,#16a34a);">💹 Buy-Sell</button>
     </div>
 
     <!-- Sidebar -->
@@ -195,6 +196,7 @@
         <div class="sidebar-item" onclick="switchTab('prediction')"><span class="icon">🤖</span>AI Prediction</div>
         <div class="sidebar-item" onclick="switchTab('best')"><span class="icon">🏆</span>Best Trade</div>
         <div class="sidebar-item" onclick="switchTab('livetrade')" style="border-left-color:#22c55e;"><span class="icon">🔥</span>Live Trade</div>
+        <div class="sidebar-item" onclick="switchTab('buysell')" style="border-left-color:#22c55e;"><span class="icon">💹</span>Buy-Sell</div>
         <div class="sidebar-section">Smart AI</div>
         <div class="sidebar-item" onclick="switchTab('tomorrow')"><span class="icon">🔮</span>Tomorrow</div>
         <div class="sidebar-item" onclick="switchTab('smarttrade')"><span class="icon">💎</span>Smart Trade</div>
@@ -369,6 +371,17 @@
                 </div>
                 <div id="liveTradeResult"></div>
             </div>
+        </div>
+
+        <!-- Buy-Sell Trading Panel -->
+        <div class="tab-content" id="tab-buysell">
+            <div class="card">
+                <h3>💹 Buy-Sell Trading Panel — Live ATM Signals</h3>
+                <button class="btn btn-blue" onclick="loadBuySellData()" style="margin-bottom:12px;">🔄 Refresh Signals</button>
+                <div id="buySellLivePrices" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;"></div>
+                <div id="buySellPanel"><p style="color:#6b7280;font-size:0.8rem;">Click Refresh or use 💹 Buy-Sell button to load live signals.</p></div>
+            </div>
+            <div class="card"><h3>📋 Order History</h3><div id="orderHistory"><p style="color:#6b7280;font-size:0.8rem;">No orders yet.</p></div></div>
         </div>
 
         <!-- Tomorrow Prediction Tab -->
@@ -1417,6 +1430,140 @@ document.getElementById('customStock').addEventListener('keypress',e=>{if(e.key=
 function show(id){document.getElementById(id).classList.add('active');document.getElementById(id).style.display='block';}
 function hide(id){document.getElementById(id).classList.remove('active');document.getElementById(id).style.display='none';}
 function showErr(m){const e=document.getElementById('errorMsg');e.textContent=m;e.style.display='block';}
+
+// Buy-Sell Panel
+function openBuySell() { switchTab('buysell'); loadBuySellData(); }
+
+var paperOrders = JSON.parse(localStorage.getItem('ecloud_orders') || '[]');
+
+function loadBuySellData() {
+    var el = document.getElementById('buySellPanel');
+    var pricesEl = document.getElementById('buySellLivePrices');
+    el.innerHTML = '<p style="color:#6b7280;font-size:0.8rem;">⏳ Fetching live data & signals...</p>';
+
+    // Fetch live prices + intraday signals for all 3 indices
+    fetch('/api/live-prices').then(function(r){return r.json()}).then(function(prices) {
+        // Show live price cards
+        var ph = '';
+        ['NIFTY','BANKNIFTY','SENSEX'].forEach(function(idx) {
+            var p = prices[idx] || {};
+            var color = (p.change_pct||0) > 0 ? '#22c55e' : (p.change_pct||0) < 0 ? '#ef4444' : '#9ca3af';
+            var arrow = (p.change_pct||0) > 0 ? '▲' : (p.change_pct||0) < 0 ? '▼' : '•';
+            ph += '<div style="background:#1a2332;border:1px solid #1f2937;border-radius:8px;padding:10px;text-align:center;">';
+            ph += '<div style="font-size:0.7rem;color:#6b7280;">' + idx + '</div>';
+            ph += '<div style="font-size:1.1rem;font-weight:700;color:' + color + ';">₹' + (p.price||0).toLocaleString() + '</div>';
+            ph += '<div style="font-size:0.68rem;color:' + color + ';">' + arrow + ' ' + Math.abs(p.change_pct||0).toFixed(2) + '% (' + (p.change||0) + ' pts)</div>';
+            ph += '<div style="font-size:0.62rem;color:#4b5563;">H:₹' + (p.high||'-') + ' L:₹' + (p.low||'-') + '</div>';
+            ph += '</div>';
+        });
+        pricesEl.innerHTML = ph;
+
+        // Now fetch signals
+        return Promise.all([
+            fetch('/api/intraday-signal/NIFTY').then(function(r){return r.json()}).catch(function(){return {symbol:'NIFTY',direction:'HOLD',entry:0}}),
+            fetch('/api/intraday-signal/BANKNIFTY').then(function(r){return r.json()}).catch(function(){return {symbol:'BANKNIFTY',direction:'HOLD',entry:0}}),
+            fetch('/api/intraday-signal/SENSEX').then(function(r){return r.json()}).catch(function(){return {symbol:'SENSEX',direction:'HOLD',entry:0}}),
+        ]).then(function(signals) {
+            var html = '';
+            var indices = ['NIFTY','BANKNIFTY','SENSEX'];
+
+            signals.forEach(function(sig, i) {
+                var idx = indices[i];
+                var p = prices[idx] || {};
+                var price = p.price || sig.entry || 0;
+                var dir = sig.direction || 'HOLD';
+                var cls = dir === 'BUY' ? 'buy' : dir === 'SELL' ? 'sell' : 'hold';
+                var side = sig.option_side || (dir === 'BUY' ? 'CE' : dir === 'SELL' ? 'PE' : '-');
+                var step = idx === 'BANKNIFTY' ? 100 : 50;
+                var atm = Math.round(price / step) * step;
+                var trend = (p.change_pct||0) > 0.3 ? 'Bullish' : (p.change_pct||0) < -0.3 ? 'Bearish' : 'Sideways';
+                var trendColor = trend === 'Bullish' ? '#22c55e' : trend === 'Bearish' ? '#ef4444' : '#eab308';
+
+                html += '<div class="card" style="margin-bottom:12px;border-left:3px solid ' + (cls==='buy'?'#22c55e':'#ef4444') + ';">';
+
+                // Header
+                html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
+                html += '<div><strong style="font-size:1rem;">' + idx + '</strong> <span style="font-size:0.8rem;color:#9ca3af;">₹' + price.toLocaleString() + '</span></div>';
+                html += '<div style="text-align:right;"><span class="rec ' + cls + '" style="font-size:1rem;">' + dir + ' ' + side + '</span>';
+                html += '<div style="font-size:0.65rem;color:' + trendColor + ';">Trend: ' + trend + '</div></div>';
+                html += '</div>';
+
+                // ATM Entry/Exit
+                html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">';
+                html += '<div>';
+                html += '<div class="row"><span class="lbl">ATM Strike</span><span class="val blue" style="font-weight:700;">' + atm + ' ' + side + '</span></div>';
+                html += '<div class="row"><span class="lbl">Entry</span><span class="val">₹' + Math.round(sig.entry||price) + '</span></div>';
+                html += '<div class="row"><span class="lbl">Stop Loss</span><span class="val red">₹' + Math.round(sig.stop_loss||0) + '</span></div>';
+                html += '</div><div>';
+                html += '<div class="row"><span class="lbl">Target 1</span><span class="val green">₹' + Math.round(sig.target_1||0) + '</span></div>';
+                html += '<div class="row"><span class="lbl">Target 2</span><span class="val green">₹' + Math.round(sig.target_2||0) + '</span></div>';
+                html += '<div class="row"><span class="lbl">Confidence</span><span class="val">' + (sig.confidence||0) + '%</span></div>';
+                html += '</div></div>';
+
+                // When to BUY / When to SELL
+                html += '<div style="font-size:0.72rem;color:#9ca3af;margin-bottom:8px;">';
+                if (dir === 'BUY') {
+                    html += '📈 <strong>BUY</strong> when price crosses above ₹' + Math.round(sig.entry||price) + ' | Exit at ₹' + Math.round(sig.target_1||0) + ' or SL ₹' + Math.round(sig.stop_loss||0);
+                } else if (dir === 'SELL') {
+                    html += '📉 <strong>SELL</strong> when price drops below ₹' + Math.round(sig.entry||price) + ' | Exit at ₹' + Math.round(sig.target_1||0) + ' or SL ₹' + Math.round(sig.stop_loss||0);
+                } else {
+                    html += '⏸️ No clear signal — wait for confirmation';
+                }
+                html += '</div>';
+
+                // Action buttons
+                html += '<div style="display:flex;gap:8px;">';
+                html += '<button class="btn" style="flex:1;background:#22c55e;color:#fff;padding:8px;" onclick="placeOrder(\'' + idx + '\',\'BUY\',\'' + side + '\',' + Math.round(sig.entry||price) + ',' + Math.round(sig.stop_loss||0) + ',' + Math.round(sig.target_1||0) + ',' + atm + ')">📈 BUY ' + atm + ' ' + side + '</button>';
+                var otherSide = side === 'CE' ? 'PE' : 'CE';
+                html += '<button class="btn" style="flex:1;background:#ef4444;color:#fff;padding:8px;" onclick="placeOrder(\'' + idx + '\',\'SELL\',\'' + otherSide + '\',' + Math.round(sig.entry||price) + ',' + Math.round(sig.stop_loss||0) + ',' + Math.round(sig.target_1||0) + ',' + atm + ')">📉 SELL ' + atm + ' ' + otherSide + '</button>';
+                html += '</div>';
+
+                html += '</div>';
+            });
+
+            html += '<p style="font-size:0.65rem;color:#4b5563;margin-top:8px;">⚠️ Paper trading mode. Connect broker API for real orders.</p>';
+            el.innerHTML = html;
+            renderOrderHistory();
+        });
+    }).catch(function(e) { el.innerHTML = '<p class="red">Error loading data: ' + (e.message||e) + '</p>'; });
+}
+
+function placeOrder(index, action, side, entry, sl, target, strike) {
+    var order = {
+        id: Date.now(),
+        time: new Date().toLocaleString('en-IN', {hour:'2-digit',minute:'2-digit',second:'2-digit',day:'2-digit',month:'short'}),
+        index: index,
+        action: action,
+        side: side,
+        strike: strike + ' ' + side,
+        entry: entry,
+        sl: sl,
+        target: target,
+        status: 'OPEN',
+    };
+    paperOrders.unshift(order);
+    if (paperOrders.length > 50) paperOrders = paperOrders.slice(0, 50);
+    localStorage.setItem('ecloud_orders', JSON.stringify(paperOrders));
+    renderOrderHistory();
+}
+
+function renderOrderHistory() {
+    var el = document.getElementById('orderHistory');
+    if (!paperOrders.length) { el.innerHTML = '<p style="color:#6b7280;font-size:0.8rem;">No orders yet. Click BUY/SELL to place paper trades.</p>'; return; }
+    var html = '';
+    paperOrders.slice(0, 15).forEach(function(o) {
+        var cls = o.action === 'BUY' ? 'green' : 'red';
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #1f2937;font-size:0.75rem;">';
+        html += '<div><span style="color:#6b7280;">' + o.time + '</span> <strong>' + o.index + '</strong></div>';
+        html += '<div style="text-align:right;"><span class="' + cls + '" style="font-weight:600;">' + o.action + ' ' + o.strike + '</span>';
+        html += '<div style="font-size:0.65rem;color:#6b7280;">Entry:₹' + o.entry + ' | SL:₹' + o.sl + ' | Tgt:₹' + o.target + '</div></div>';
+        html += '</div>';
+    });
+    if (paperOrders.length > 0) {
+        html += '<button class="btn btn-ghost" style="margin-top:8px;font-size:0.7rem;" onclick="paperOrders=[];localStorage.removeItem(\'ecloud_orders\');renderOrderHistory();">Clear History</button>';
+    }
+    el.innerHTML = html;
+}
 
 // Live IST Clock (NTP synced)
 (function() {

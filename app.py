@@ -21,9 +21,11 @@ from modules.smart_predictions import SmartPredictor
 from modules.ai_decision_engine import AIDecisionEngine
 from modules.broker_adapters import BrokerManager
 from modules.nse_live import NSELiveData
+from werkzeug.middleware.proxy_fix import ProxyFix
 from config.settings import FLASK_SECRET_KEY, FLASK_DEBUG, FLASK_PORT, SAMPLE_STOCKS
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.secret_key = FLASK_SECRET_KEY
 app.config['JSON_SORT_KEYS'] = False
 

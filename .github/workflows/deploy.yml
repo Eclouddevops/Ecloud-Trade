@@ -1,0 +1,79 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  EC2_HOST: ${{ secrets.EC2_HOST }}
+  EC2_USER: ubuntu
+  APP_DIR: /opt/ecloud-trade
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Deploy to EC2
+        run: |
+          # Sync code to EC2
+          rsync -avz --delete \
+            --exclude '.git' \
+            --exclude '__pycache__' \
+            --exclude 'venv' \
+            --exclude 'terraform' \
+            --exclude '.github' \
+            --exclude 'models/saved/*.pkl' \
+            --exclude 'data/cache/*.json' \
+            --exclude '.env' \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            ./ ${{ env.EC2_USER }}@${{ env.EC2_HOST }}:${{ env.APP_DIR }}/
+
+      - name: Install dependencies & restart
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << 'EOF'
+          
+          cd /opt/ecloud-trade
+          
+          # Create venv if not exists
+          if [ ! -d "venv" ]; then
+            python3 -m venv venv
+          fi
+          
+          # Install/update dependencies
+          source venv/bin/activate
+          pip install -r requirements.txt
+          pip install gunicorn
+          
+          # Restart app
+          sudo systemctl restart ecloud-trade
+          
+          # Check status
+          sleep 3
+          sudo systemctl status ecloud-trade --no-pager
+          
+          echo "✅ Deployment complete!"
+          echo "🌐 App: http://$(curl -s ifconfig.me)"
+          EOF
+
+      - name: Health check
+        run: |
+          sleep 5
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.EC2_HOST }}/api/health || echo "000")
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ Health check passed!"
+          else
+            echo "❌ Health check failed (HTTP $STATUS)"
+            exit 1
+          fi
