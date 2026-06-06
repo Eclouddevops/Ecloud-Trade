@@ -7,6 +7,7 @@ Includes options trading signals, intraday signals, candlestick scanner, and bre
 """
 import json
 import re
+from datetime import datetime
 from flask import Flask, render_template, request, jsonify
 from analysis.analyzer import StockAnalyzer
 from data.usa_news import USANewsAnalyzer
@@ -21,6 +22,7 @@ from modules.smart_predictions import SmartPredictor
 from modules.ai_decision_engine import AIDecisionEngine
 from modules.broker_adapters import BrokerManager
 from modules.nse_live import NSELiveData
+from modules.quantedge import QuantEdgeEngine
 from werkzeug.middleware.proxy_fix import ProxyFix
 from config.settings import FLASK_SECRET_KEY, FLASK_DEBUG, FLASK_PORT, SAMPLE_STOCKS
 
@@ -75,6 +77,7 @@ smart_predictor = SmartPredictor()
 ai_engine = AIDecisionEngine()
 broker_mgr = BrokerManager()
 nse_live = NSELiveData()
+quantedge = QuantEdgeEngine()
 
 # Store recent analyses for chatbot context
 _chat_analysis_cache = {}
@@ -596,6 +599,190 @@ def broker_status():
     """Check which broker is active and configured."""
     try:
         return jsonify(broker_mgr.get_status())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/quantedge/<symbol>")
+def quantedge_signals(symbol: str):
+    """
+    QuantEdge Option Trading signals.
+    Black-Scholes ATM pricing, Greeks, PCR strategy, full option chain.
+    """
+    try:
+        symbol = symbol.upper()
+        df = data_collector.get_stock_data(symbol, period="3mo")
+        spot = float(df["close"].iloc[-1])
+        signals = quantedge.generate_signals(spot, symbol, df)
+        return safe_jsonify(signals)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/option-chain/<symbol>")
+def option_chain(symbol: str):
+    """Get full option chain with CE/PE prices for 11 strikes."""
+    try:
+        symbol = symbol.upper()
+        df = data_collector.get_stock_data(symbol, period="3mo")
+        spot = float(df["close"].iloc[-1])
+        chain = quantedge.get_full_chain(spot, symbol, df)
+        return safe_jsonify(chain)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/prob-strategy/<symbol>")
+def prob_strategy(symbol: str):
+    """
+    Intraday probability & option selling strategy.
+    Calculates up/down/flat probability and recommends selling strategy.
+    """
+    try:
+        import math as _m
+        symbol = symbol.upper()
+        df = data_collector.get_stock_data(symbol, period="6mo")
+        spot = round(float(df["close"].iloc[-1]), 2)
+
+        import ta as ta_lib
+        close = df["close"]
+        high = df["high"]
+        low = df["low"]
+
+        # Calculate indicators
+        rsi = float(ta_lib.momentum.RSIIndicator(close=close, window=14).rsi().iloc[-1])
+        macd_ind = ta_lib.trend.MACD(close=close)
+        macd_hist = float(macd_ind.macd_diff().iloc[-1])
+        atr = float(ta_lib.volatility.AverageTrueRange(high=high, low=low, close=close, window=14).average_true_range().iloc[-1])
+        ema_9 = float(ta_lib.trend.EMAIndicator(close=close, window=9).ema_indicator().iloc[-1])
+        ema_21 = float(ta_lib.trend.EMAIndicator(close=close, window=21).ema_indicator().iloc[-1])
+        adx_ind = ta_lib.trend.ADXIndicator(high=high, low=low, close=close, window=14)
+        adx = float(adx_ind.adx().iloc[-1])
+
+        # Historical volatility
+        returns = close.pct_change().dropna()
+        hv = float(returns.tail(20).std() * _m.sqrt(252))
+        iv_est = round(hv * 100, 1)
+
+        # Probability calculation
+        bull_score = 0
+        bear_score = 0
+
+        if rsi > 55: bull_score += 20
+        elif rsi < 45: bear_score += 20
+        if macd_hist > 0: bull_score += 15
+        else: bear_score += 15
+        if ema_9 > ema_21: bull_score += 20
+        else: bear_score += 20
+        if adx > 25: 
+            if float(adx_ind.adx_pos().iloc[-1]) > float(adx_ind.adx_neg().iloc[-1]):
+                bull_score += 15
+            else:
+                bear_score += 15
+
+        # Recent momentum
+        ret_1d = float((close.iloc[-1] - close.iloc[-2]) / close.iloc[-2] * 100)
+        if ret_1d > 0.3: bull_score += 15
+        elif ret_1d < -0.3: bear_score += 15
+
+        total = bull_score + bear_score
+        if total == 0: total = 1
+        up_prob = round(bull_score / total * 100, 1)
+        down_prob = round(bear_score / total * 100, 1)
+        flat_prob = round(max(0, 100 - up_prob - down_prob + 15), 1)  # Some overlap for flat
+
+        # Normalize
+        total_p = up_prob + down_prob + flat_prob
+        up_prob = round(up_prob / total_p * 100, 1)
+        down_prob = round(down_prob / total_p * 100, 1)
+        flat_prob = round(100 - up_prob - down_prob, 1)
+
+        # Option selling strategy
+        config = {"NIFTY": 50, "BANKNIFTY": 100, "SENSEX": 100}.get(symbol, 50)
+        atm = round(spot / config) * config
+        expected_range = round(atr * 1.2, 0)
+
+        # Strategy recommendation
+        if up_prob > 55:
+            strategy = "SELL PUT"
+            sell_strike = atm - config * 2  # OTM put
+            reason = "Market bias bullish — sell OTM puts to collect premium"
+            risk = "Risk if sudden selloff below " + str(sell_strike)
+        elif down_prob > 55:
+            strategy = "SELL CALL"
+            sell_strike = atm + config * 2  # OTM call
+            reason = "Market bias bearish — sell OTM calls to collect premium"
+            risk = "Risk if sudden rally above " + str(sell_strike)
+        else:
+            strategy = "SELL BOTH (Iron Condor)"
+            sell_strike = atm
+            reason = "Market likely range-bound — sell both OTM CE and PE"
+            risk = "Risk if breakout in either direction beyond range"
+
+        # Premium estimates using Black-Scholes
+        T = 5 / 365  # ~5 days to expiry
+        r = 0.065
+        ce_strike = atm + config * 2
+        pe_strike = atm - config * 2
+        ce_premium = quantedge.black_scholes_call(spot, ce_strike, T, r, hv)
+        pe_premium = quantedge.black_scholes_put(spot, pe_strike, T, r, hv)
+
+        # Expected return
+        if strategy == "SELL PUT":
+            exp_return = round(pe_premium / spot * 100, 3)
+        elif strategy == "SELL CALL":
+            exp_return = round(ce_premium / spot * 100, 3)
+        else:
+            exp_return = round((ce_premium + pe_premium) / spot * 100, 3)
+
+        result = {
+            "symbol": symbol,
+            "spot_price": spot,
+            "timestamp": datetime.now().isoformat(),
+            "probability": {
+                "upside": up_prob,
+                "downside": down_prob,
+                "flat": flat_prob,
+            },
+            "indicators": {
+                "rsi": round(rsi, 1),
+                "macd": "Bullish" if macd_hist > 0 else "Bearish",
+                "ema_trend": "Bullish" if ema_9 > ema_21 else "Bearish",
+                "adx": round(adx, 1),
+                "atr": round(atr, 1),
+                "iv_estimate": iv_est,
+                "1d_return": round(ret_1d, 2),
+            },
+            "strategy": {
+                "recommendation": strategy,
+                "reason": reason,
+                "risk": risk,
+                "expected_range": f"₹{round(spot - expected_range)} — ₹{round(spot + expected_range)}",
+            },
+            "option_selling": {
+                "sell_ce": {
+                    "strike": ce_strike,
+                    "premium": round(ce_premium, 2),
+                    "probability_otm": round(100 - up_prob, 1),
+                },
+                "sell_pe": {
+                    "strike": pe_strike,
+                    "premium": round(pe_premium, 2),
+                    "probability_otm": round(100 - down_prob, 1),
+                },
+                "expected_return_pct": exp_return,
+                "risk_level": "High" if iv_est > 18 else "Medium" if iv_est > 12 else "Low",
+            },
+            "actionable_summary": {
+                "action": strategy,
+                "ce_strike": ce_strike,
+                "ce_premium": round(ce_premium, 2),
+                "pe_strike": pe_strike,
+                "pe_premium": round(pe_premium, 2),
+                "max_profit": round(ce_premium + pe_premium, 2) if "BOTH" in strategy else round(ce_premium if "CALL" in strategy else pe_premium, 2),
+            },
+        }
+        return safe_jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

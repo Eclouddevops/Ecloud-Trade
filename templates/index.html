@@ -10,7 +10,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; background: #0b0f19; color: #e2e8f0; height: 100vh; overflow: hidden; }
 
-        .app { display: grid; grid-template-columns: 200px 1fr 360px; grid-template-rows: 48px 1fr; height: 100vh; }
+        .app { display: grid; grid-template-columns: 200px 1fr; grid-template-rows: 48px 1fr; height: 100vh; }
 
         /* Top Bar */
         .topbar { grid-column: 1/-1; background: #111827; border-bottom: 1px solid #1f2937; display: flex; align-items: center; padding: 0 16px; gap: 12px; }
@@ -167,8 +167,6 @@
         </select>
         <input type="text" id="customStock" placeholder="Symbol..." style="width:100px;">
         <button class="btn btn-blue" id="analyzeBtn" onclick="runAnalysis()">Analyze</button>
-        <button class="btn btn-red" onclick="loadBestTrade()">🏆 Best Trade</button>
-        <button class="btn btn-ghost" onclick="loadUSA()">📰 News</button>
         <button class="btn btn-blue" onclick="openBuySell()" style="background:linear-gradient(135deg,#22c55e,#16a34a);">💹 Buy-Sell</button>
     </div>
 
@@ -194,11 +192,12 @@
         <div class="sidebar-section">Intelligence</div>
         <div class="sidebar-item" onclick="switchTab('usa')"><span class="icon">📰</span>News</div>
         <div class="sidebar-item" onclick="switchTab('prediction')"><span class="icon">🤖</span>AI Prediction</div>
-        <div class="sidebar-item" onclick="switchTab('best')"><span class="icon">🏆</span>Best Trade</div>
         <div class="sidebar-item" onclick="switchTab('livetrade')" style="border-left-color:#22c55e;"><span class="icon">🔥</span>Live Trade</div>
         <div class="sidebar-item" onclick="switchTab('buysell')" style="border-left-color:#22c55e;"><span class="icon">💹</span>Buy-Sell</div>
+        <div class="sidebar-item" onclick="switchTab('quantedge')"><span class="icon">⚡</span>QuantEdge</div>
         <div class="sidebar-section">Smart AI</div>
         <div class="sidebar-item" onclick="switchTab('tomorrow')"><span class="icon">🔮</span>Tomorrow</div>
+        <div class="sidebar-item" onclick="switchTab('probstrategy')"><span class="icon">📊</span>Probability</div>
         <div class="sidebar-item" onclick="switchTab('smarttrade')"><span class="icon">💎</span>Smart Trade</div>
         <div class="sidebar-item" onclick="switchTab('sentiment')"><span class="icon">🌡️</span>Sentiment</div>
         <div class="sidebar-item" onclick="switchTab('deepai')"><span class="icon">🧬</span>AI Verdict</div>
@@ -255,7 +254,14 @@
 
         <!-- Technical Tab -->
         <div class="tab-content" id="tab-technical">
-            <div class="card-grid" id="techGrid"></div>
+            <div class="card"><h3>Technical Analysis</h3>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button class="btn btn-blue" onclick="loadTechnical('NIFTY')">NIFTY</button>
+                    <button class="btn btn-blue" onclick="loadTechnical('BANKNIFTY')">BANKNIFTY</button>
+                    <button class="btn btn-blue" onclick="loadTechnical('SENSEX')">SENSEX</button>
+                </div>
+            </div>
+            <div class="card-grid" id="techGrid"><p style="color:#6b7280;font-size:0.8rem;padding:10px;">Click an index above to load technical data.</p></div>
         </div>
         <!-- Options Tab -->
         <div class="tab-content" id="tab-options">
@@ -352,10 +358,7 @@
             </div>
         </div>
 
-        <!-- Best Trade Tab -->
-        <div class="tab-content" id="tab-best">
-            <div id="bestResult"><p style="color:#6b7280;font-size:0.8rem;">Click "🏆 Best Trade" to scan all indices.</p></div>
-        </div>
+
 
         <!-- Live Trade Tab -->
         <div class="tab-content" id="tab-livetrade">
@@ -384,6 +387,20 @@
             <div class="card"><h3>📋 Order History</h3><div id="orderHistory"><p style="color:#6b7280;font-size:0.8rem;">No orders yet.</p></div></div>
         </div>
 
+        <!-- QuantEdge Tab -->
+        <div class="tab-content" id="tab-quantedge">
+            <div class="card"><h3>⚡ QuantEdge — Option Trading Engine</h3>
+                <p style="font-size:0.73rem;color:#9ca3af;margin-bottom:10px;">Black-Scholes ATM pricing • Greeks • PCR Strategy • Option Chain</p>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button class="btn btn-blue" onclick="loadQuantEdge('NIFTY')">NIFTY</button>
+                    <button class="btn btn-blue" onclick="loadQuantEdge('BANKNIFTY')">BANKNIFTY</button>
+                    <button class="btn btn-blue" onclick="loadQuantEdge('SENSEX')">SENSEX</button>
+                    <button class="btn btn-ghost" onclick="loadQuantEdge('FINNIFTY')">FINNIFTY</button>
+                </div>
+                <div id="quantEdgeResult"></div>
+            </div>
+        </div>
+
         <!-- Tomorrow Prediction Tab -->
         <div class="tab-content" id="tab-tomorrow">
             <div class="card"><h3>🔮 Tomorrow Prediction — Next Day Forecast</h3>
@@ -394,6 +411,19 @@
                     <button class="btn btn-blue" onclick="loadTomorrow('SENSEX')">SENSEX</button>
                 </div>
                 <div id="tomorrowResult"></div>
+            </div>
+        </div>
+
+        <!-- Probability & Option Selling Strategy Tab -->
+        <div class="tab-content" id="tab-probstrategy">
+            <div class="card"><h3>📊 Intraday Probability & Option Selling Strategy</h3>
+                <p style="font-size:0.73rem;color:#9ca3af;margin-bottom:10px;">Calculates up/down/flat probability. Recommends CE/PE selling strategy with strike, premium, and risk.</p>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button class="btn btn-blue" onclick="loadProbStrategy('NIFTY')">NIFTY</button>
+                    <button class="btn btn-blue" onclick="loadProbStrategy('BANKNIFTY')">BANKNIFTY</button>
+                    <button class="btn btn-blue" onclick="loadProbStrategy('SENSEX')">SENSEX</button>
+                </div>
+                <div id="probStrategyResult"></div>
             </div>
         </div>
 
@@ -436,33 +466,8 @@
         </div>
     </main>
 
-    <!-- Chat Panel -->
-    <aside class="chat-panel" id="chatPanel">
-        <div class="chat-hdr" id="chatDragHandle">
-            <span class="dot"></span>Trade Assistant
-            <span class="drag-hint">⋮⋮ drag to move</span>
-            <button class="btn-ghost" style="margin-left:8px;padding:2px 6px;font-size:0.7rem;" onclick="toggleFloatChat()" title="Detach/Attach">⇱</button>
-        </div>
-        <div class="quick-btns">
-            <button class="qbtn" onclick="qchat('USA news')">🇺🇸 USA</button>
-            <button class="qbtn" onclick="qchat('Options NIFTY')">Options</button>
-            <button class="qbtn" onclick="qchat('Best trade today')">Best Trade</button>
-            <button class="qbtn" onclick="qchat('Help')">Help</button>
-        </div>
-        <div class="chat-msgs" id="chatMsgs">
-            <div class="cmsg bot">Hi! Ask me about stocks, options, USA news, candlestick patterns, or intraday signals.</div>
-        </div>
-        <div class="typing" id="typing"><span></span><span></span><span></span></div>
-        <div class="chat-scroll-btns">
-            <button class="chat-scroll-btn" onclick="scrollChatUp()" title="Scroll up">▲</button>
-            <button class="chat-scroll-btn" onclick="scrollChatDown()" title="Scroll down">▼</button>
-        </div>
-        <div class="chat-input">
-            <input type="text" id="chatIn" placeholder="Ask anything..." autocomplete="off">
-            <button id="chatBtn" onclick="sendChat()">Send</button>
-        </div>
-    </aside>
-    <button class="chat-reattach-btn" id="chatReattachBtn" onclick="toggleFloatChat()" title="Show chat">💬</button>
+    <!-- End of layout -->
+</div>
 </div>
 <script>
 let currentSymbol = '';
@@ -610,6 +615,15 @@ function loadChart(symbol) {
 }
 
 // Technical
+function loadTechnical(symbol) {
+    var el = document.getElementById('techGrid');
+    el.innerHTML = '<p style="color:#6b7280;font-size:0.8rem;padding:10px;">Loading technical data for ' + symbol + '...</p>';
+    fetch('/api/quick-analysis/' + symbol).then(function(r){return r.json()}).then(function(d) {
+        if (d.error) { el.innerHTML = '<p class="red">' + d.error + '</p>'; return; }
+        renderTechnical(d);
+    }).catch(function(e) { el.innerHTML = '<p class="red">Error: ' + (e.message||e) + '</p>'; });
+}
+
 function renderTechnical(d) {
     const ti = d.technical_indicators;
     document.getElementById('techGrid').innerHTML = `
@@ -1030,6 +1044,79 @@ function loadTomorrow(idx) {
     }).catch(e => { el.innerHTML = `<p class="red">Error: ${e.message}</p>`; });
 }
 
+// Probability & Option Selling Strategy
+function loadProbStrategy(idx) {
+    var el = document.getElementById('probStrategyResult');
+    el.innerHTML = '<p style="color:#6b7280;font-size:0.8rem;">📊 Calculating probabilities for ' + idx + '...</p>';
+    fetch('/api/prob-strategy/' + idx).then(function(r){return r.json()}).then(function(d) {
+        if (d.error) { el.innerHTML = '<p class="red">' + d.error + '</p>'; return; }
+        var prob = d.probability || {};
+        var ind = d.indicators || {};
+        var strat = d.strategy || {};
+        var opt = d.option_selling || {};
+        var action = d.actionable_summary || {};
+
+        var maxProb = Math.max(prob.upside, prob.downside, prob.flat);
+        var direction = prob.upside === maxProb ? 'Bullish' : prob.downside === maxProb ? 'Bearish' : 'Sideways';
+        var cls = direction === 'Bullish' ? 'buy' : direction === 'Bearish' ? 'sell' : 'hold';
+
+        var html = '';
+
+        // Probability banner
+        html += '<div class="signal-banner ' + cls + '" style="margin-bottom:12px;">';
+        html += '<div class="left"><h2>' + d.symbol + '</h2><p>₹' + d.spot_price + ' | IV: ' + ind.iv_estimate + '% | ATR: ' + ind.atr + '</p></div>';
+        html += '<div class="right"><div class="rec ' + cls + '">' + direction.toUpperCase() + '</div>';
+        html += '<p style="font-size:0.72rem;color:#9ca3af;">' + strat.recommendation + '</p></div></div>';
+
+        // Probability bars
+        html += '<div class="card"><h3>📈 Intraday Probability</h3>';
+        html += '<div class="row"><span class="lbl">📈 Upside</span><span class="val green">' + prob.upside + '%</span></div>';
+        html += '<div class="pred"><div class="pred-bar"><div class="pred-fill" style="width:' + prob.upside + '%;background:#22c55e;"></div></div></div>';
+        html += '<div class="row"><span class="lbl">📉 Downside</span><span class="val red">' + prob.downside + '%</span></div>';
+        html += '<div class="pred"><div class="pred-bar"><div class="pred-fill" style="width:' + prob.downside + '%;background:#ef4444;"></div></div></div>';
+        html += '<div class="row"><span class="lbl">🌤️ Flat/Range</span><span class="val yellow">' + prob.flat + '%</span></div>';
+        html += '<div class="pred"><div class="pred-bar"><div class="pred-fill" style="width:' + prob.flat + '%;background:#eab308;"></div></div></div>';
+        html += '<div class="row" style="margin-top:8px;"><span class="lbl">Expected Range</span><span class="val">' + strat.expected_range + '</span></div>';
+        html += '</div>';
+
+        html += '<div class="card-grid">';
+
+        // Strategy
+        html += '<div class="card" style="border-left:3px solid ' + (cls==='buy'?'#22c55e':'#ef4444') + ';"><h3>🎯 Recommended Strategy</h3>';
+        html += '<div class="row"><span class="lbl">Action</span><span class="val blue" style="font-weight:700;">' + strat.recommendation + '</span></div>';
+        html += '<div class="row"><span class="lbl">Reason</span><span class="val" style="font-size:0.73rem;">' + strat.reason + '</span></div>';
+        html += '<div class="row"><span class="lbl">Risk</span><span class="val red" style="font-size:0.73rem;">' + strat.risk + '</span></div>';
+        html += '<div class="row"><span class="lbl">Risk Level</span><span class="val">' + opt.risk_level + '</span></div>';
+        html += '<div class="row"><span class="lbl">Expected Return</span><span class="val green">' + opt.expected_return_pct + '%</span></div>';
+        html += '</div>';
+
+        // Option selling details
+        html += '<div class="card"><h3>💰 Option Selling Setup</h3>';
+        html += '<div class="row"><span class="lbl">Sell CE Strike</span><span class="val red">' + (opt.sell_ce?opt.sell_ce.strike:'-') + '</span></div>';
+        html += '<div class="row"><span class="lbl">CE Premium</span><span class="val">₹' + (opt.sell_ce?opt.sell_ce.premium:'-') + '</span></div>';
+        html += '<div class="row"><span class="lbl">CE Prob OTM</span><span class="val">' + (opt.sell_ce?opt.sell_ce.probability_otm:'-') + '%</span></div>';
+        html += '<div class="row"><span class="lbl">Sell PE Strike</span><span class="val green">' + (opt.sell_pe?opt.sell_pe.strike:'-') + '</span></div>';
+        html += '<div class="row"><span class="lbl">PE Premium</span><span class="val">₹' + (opt.sell_pe?opt.sell_pe.premium:'-') + '</span></div>';
+        html += '<div class="row"><span class="lbl">PE Prob OTM</span><span class="val">' + (opt.sell_pe?opt.sell_pe.probability_otm:'-') + '%</span></div>';
+        html += '<div class="row"><span class="lbl">Max Profit</span><span class="val green" style="font-weight:700;">₹' + action.max_profit + '</span></div>';
+        html += '</div>';
+
+        html += '</div>';
+
+        // Indicators
+        html += '<div class="card"><h3>📐 Technical Basis</h3>';
+        html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:0.73rem;text-align:center;">';
+        html += '<div><div style="color:#6b7280;">RSI</div><div style="font-weight:600;">' + ind.rsi + '</div></div>';
+        html += '<div><div style="color:#6b7280;">MACD</div><div style="font-weight:600;">' + ind.macd + '</div></div>';
+        html += '<div><div style="color:#6b7280;">EMA</div><div style="font-weight:600;">' + ind.ema_trend + '</div></div>';
+        html += '<div><div style="color:#6b7280;">ADX</div><div style="font-weight:600;">' + ind.adx + '</div></div>';
+        html += '</div></div>';
+
+        html += '<p style="font-size:0.65rem;color:#4b5563;margin-top:8px;">⚠️ Not financial advice. Option selling carries unlimited risk. Use proper position sizing and stop loss. Past performance ≠ future results.</p>';
+        el.innerHTML = html;
+    }).catch(function(e) { el.innerHTML = '<p class="red">Error: ' + (e.message||e) + '</p>'; });
+}
+
 // Smart Trade
 function loadSmartTrade(idx) {
     const el = document.getElementById('smartTradeResult');
@@ -1405,25 +1492,15 @@ function loadLiveTradeAll() {
     }).catch(e => { el.innerHTML = `<p class="red">Failed: ${e.message}</p>`; });
 }
 
-// Chat
-function sendChat() {
-    const inp = document.getElementById('chatIn');
-    const msg = inp.value.trim(); if (!msg) return;
-    addMsg(msg,'user'); inp.value = '';
-    document.getElementById('typing').style.display = 'block';
-    document.getElementById('chatBtn').disabled = true;
-    scrollC();
-    fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})})
-    .then(r=>r.json()).then(d=>{
-        document.getElementById('typing').style.display='none';
-        document.getElementById('chatBtn').disabled=false;
-        addMsg(d.reply,'bot');
-    }).catch(()=>{document.getElementById('typing').style.display='none';document.getElementById('chatBtn').disabled=false;addMsg('Error. Try again.','bot');});
-}
-function qchat(t){document.getElementById('chatIn').value=t;sendChat();}
-function addMsg(t,s){const c=document.getElementById('chatMsgs');const d=document.createElement('div');d.className='cmsg '+s;if(s==='bot'){d.innerHTML=t.replace(/\*\*(.*?)\*\*/g,'<span class="b">$1</span>').replace(/\n/g,'<br>');}else{d.textContent=t;}c.appendChild(d);scrollC();}
-function scrollC(){const c=document.getElementById('chatMsgs');c.scrollTop=c.scrollHeight;}
-document.getElementById('chatIn').addEventListener('keypress',e=>{if(e.key==='Enter')sendChat();});
+// Chat removed - using dashboard panels instead
+function sendChat() {}
+function qchat() {}
+function addMsg() {}
+function scrollC() {}
+function scrollChatUp() {}
+function scrollChatDown() {}
+function toggleFloatChat() {}
+
 document.getElementById('customStock').addEventListener('keypress',e=>{if(e.key==='Enter')runAnalysis();});
 
 // Helpers
@@ -1433,6 +1510,71 @@ function showErr(m){const e=document.getElementById('errorMsg');e.textContent=m;
 
 // Buy-Sell Panel
 function openBuySell() { switchTab('buysell'); loadBuySellData(); }
+
+// QuantEdge
+function loadQuantEdge(idx) {
+    var el = document.getElementById('quantEdgeResult');
+    el.innerHTML = '<p style="color:#6b7280;font-size:0.8rem;">⚡ Running QuantEdge on ' + idx + '...</p>';
+    fetch('/api/quantedge/' + idx).then(function(r){return r.json()}).then(function(d) {
+        if (d.error) { el.innerHTML = '<p class="red">' + d.error + '</p>'; return; }
+        var s = d.signal || {};
+        var oc = d.option_chain || {};
+        var g = d.greeks || {};
+        var cls = d.strategy === 'BULLISH' ? 'buy' : d.strategy === 'BEARISH' ? 'sell' : 'hold';
+
+        var html = '';
+        // Signal banner
+        html += '<div class="signal-banner ' + cls + '" style="margin-bottom:12px;">';
+        html += '<div class="left"><h2>' + d.symbol + '</h2><p>Spot: ₹' + d.spot_price + ' | IV: ' + d.iv + '% | PCR: ' + d.pcr + '</p></div>';
+        html += '<div class="right"><div class="rec ' + cls + '">' + d.recommendation + '</div>';
+        html += '<p style="font-size:0.72rem;color:#9ca3af;">Strategy: ' + d.strategy + ' | R:R ' + s.risk_reward + '</p></div></div>';
+
+        html += '<div class="card-grid">';
+        // Signal card
+        html += '<div class="card" style="border-left:3px solid ' + (cls==='buy'?'#22c55e':'#ef4444') + ';"><h3>🎯 Trade Signal</h3>';
+        html += '<div class="row"><span class="lbl">Strike</span><span class="val blue" style="font-weight:700;">' + s.strike + '</span></div>';
+        html += '<div class="row"><span class="lbl">Entry Premium</span><span class="val">₹' + s.entry + '</span></div>';
+        html += '<div class="row"><span class="lbl">Stop Loss (-30%)</span><span class="val red">₹' + s.stop_loss + '</span></div>';
+        html += '<div class="row"><span class="lbl">Target 1 (+50%)</span><span class="val green">₹' + s.target_1 + '</span></div>';
+        html += '<div class="row"><span class="lbl">Target 2 (+100%)</span><span class="val green">₹' + s.target_2 + '</span></div>';
+        html += '<div class="row"><span class="lbl">Lot Size</span><span class="val">' + s.lot_size + '</span></div>';
+        html += '<div class="row"><span class="lbl">Lot Value</span><span class="val">₹' + s.lot_value + '</span></div>';
+        html += '</div>';
+
+        // Greeks
+        var ceG = g.ce || {};
+        var peG = g.pe || {};
+        html += '<div class="card"><h3>📐 Greeks (ATM ' + d.atm_strike + ')</h3>';
+        html += '<div class="row"><span class="lbl">CE Delta</span><span class="val">' + (ceG.delta||0) + '</span></div>';
+        html += '<div class="row"><span class="lbl">PE Delta</span><span class="val">' + (peG.delta||0) + '</span></div>';
+        html += '<div class="row"><span class="lbl">Gamma</span><span class="val">' + (ceG.gamma||0) + '</span></div>';
+        html += '<div class="row"><span class="lbl">CE Theta</span><span class="val red">' + (ceG.theta||0) + '</span></div>';
+        html += '<div class="row"><span class="lbl">PE Theta</span><span class="val red">' + (peG.theta||0) + '</span></div>';
+        html += '<div class="row"><span class="lbl">Vega</span><span class="val">' + (ceG.vega||0) + '</span></div>';
+        html += '</div>';
+        html += '</div>';
+
+        // Option Chain
+        var ce = oc.ce || {};
+        var pe = oc.pe || {};
+        html += '<div class="card"><h3>📊 Option Chain (ATM ±1)</h3>';
+        html += '<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:0;font-size:0.75rem;">';
+        html += '<div style="text-align:center;font-weight:600;color:#22c55e;padding:4px;">CE</div>';
+        html += '<div style="text-align:center;font-weight:600;color:#60a5fa;padding:4px;">Strike</div>';
+        html += '<div style="text-align:center;font-weight:600;color:#ef4444;padding:4px;">PE</div>';
+
+        // ITM CE / OTM PE
+        if (ce.itm) { html += '<div style="text-align:center;padding:4px;background:rgba(34,197,94,0.05);">₹' + ce.itm.price + '</div>'; html += '<div style="text-align:center;padding:4px;">' + ce.itm.strike + '</div>'; html += '<div style="text-align:center;padding:4px;">₹' + (pe.otm?pe.otm.price:'-') + '</div>'; }
+        // ATM
+        if (ce.atm) { html += '<div style="text-align:center;padding:4px;background:rgba(34,197,94,0.1);font-weight:700;">₹' + ce.atm.price + '</div>'; html += '<div style="text-align:center;padding:4px;font-weight:700;color:#60a5fa;">' + ce.atm.strike + ' ★</div>'; html += '<div style="text-align:center;padding:4px;background:rgba(239,68,68,0.1);font-weight:700;">₹' + (pe.atm?pe.atm.price:'-') + '</div>'; }
+        // OTM CE / ITM PE
+        if (ce.otm) { html += '<div style="text-align:center;padding:4px;">₹' + ce.otm.price + '</div>'; html += '<div style="text-align:center;padding:4px;">' + ce.otm.strike + '</div>'; html += '<div style="text-align:center;padding:4px;background:rgba(239,68,68,0.05);">₹' + (pe.itm?pe.itm.price:'-') + '</div>'; }
+        html += '</div></div>';
+
+        html += '<p style="font-size:0.65rem;color:#4b5563;margin-top:8px;">Prices from Black-Scholes model. PCR estimated from price action. ⚠️ Not financial advice.</p>';
+        el.innerHTML = html;
+    }).catch(function(e) { el.innerHTML = '<p class="red">Error: ' + (e.message||e) + '</p>'; });
+}
 
 var paperOrders = JSON.parse(localStorage.getItem('ecloud_orders') || '[]');
 
@@ -1641,7 +1783,6 @@ function renderOrderHistory() {
     setInterval(fetchLivePrices, 5000);
 })();
 
-document.getElementById('chatIn').addEventListener('keypress',e=>{if(e.key==='Enter')sendChat();});
 document.getElementById('customStock').addEventListener('keypress',e=>{if(e.key==='Enter')runAnalysis();});
 </script>
 </body>
