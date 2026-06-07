@@ -194,6 +194,7 @@
         <div class="sidebar-section">Intelligence</div>
         <div class="sidebar-item" onclick="switchTab('usa')"><span class="icon">📰</span>News</div>
         <div class="sidebar-item" onclick="switchTab('prediction')"><span class="icon">🤖</span>AI Prediction</div>
+        <div class="sidebar-item" onclick="switchTab('bullbear')"><span class="icon">🎯</span>Bull/Bear</div>
         <div class="sidebar-item" onclick="switchTab('livetrade')" style="border-left-color:#22c55e;"><span class="icon">🔥</span>Live Trade</div>
         <div class="sidebar-item" onclick="switchTab('buysell')" style="border-left-color:#22c55e;"><span class="icon">💹</span>Buy-Sell</div>
         <div class="sidebar-item" onclick="switchTab('quantedge')"><span class="icon">⚡</span>QuantEdge</div>
@@ -251,17 +252,6 @@
                 </div>
                 <div class="chart-box" id="priceChart"></div>
                 <p style="font-size:0.68rem;color:#4b5563;margin-top:8px;">Green ▲ = Buy Signal | Red ▼ = Sell Signal | Green dash = Support | Red dash = Resistance | Blue = EMA 20 | Orange = SMA 50</p>
-            </div>
-
-            <!-- Bullish / Bearish Prediction Tabs -->
-            <div class="card">
-                <div style="display:flex;gap:0;margin-bottom:12px;">
-                    <button class="btn" id="bullTabBtn" onclick="showPredTab('bull')" style="flex:1;border-radius:8px 0 0 8px;background:#22c55e;color:#fff;">📈 Bullish Prediction</button>
-                    <button class="btn" id="bearTabBtn" onclick="showPredTab('bear')" style="flex:1;border-radius:0 8px 8px 0;background:#374151;color:#9ca3af;">📉 Bearish Prediction</button>
-                </div>
-                <div id="bullPrediction" style="display:block;"></div>
-                <div id="bearPrediction" style="display:none;"></div>
-                <div id="predLoading" style="color:#6b7280;font-size:0.8rem;padding:10px;">Loading predictions...</div>
             </div>
         </div>
 
@@ -372,6 +362,24 @@
         </div>
 
 
+
+        <!-- Bullish/Bearish Prediction Tab -->
+        <div class="tab-content" id="tab-bullbear">
+            <div class="card"><h3>🎯 Bullish / Bearish Prediction — ITM, ATM, OTM Strikes</h3>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button class="btn btn-blue" onclick="loadChartPredictions('NIFTY')">NIFTY</button>
+                    <button class="btn btn-blue" onclick="loadChartPredictions('BANKNIFTY')">BANKNIFTY</button>
+                    <button class="btn btn-blue" onclick="loadChartPredictions('SENSEX')">SENSEX</button>
+                </div>
+                <div style="display:flex;gap:0;margin-bottom:12px;">
+                    <button class="btn" id="bullTabBtn" onclick="showPredTab('bull')" style="flex:1;border-radius:8px 0 0 8px;background:#22c55e;color:#fff;">📈 Bullish Prediction</button>
+                    <button class="btn" id="bearTabBtn" onclick="showPredTab('bear')" style="flex:1;border-radius:0 8px 8px 0;background:#374151;color:#9ca3af;">📉 Bearish Prediction</button>
+                </div>
+                <div id="bullPrediction" style="display:block;"></div>
+                <div id="bearPrediction" style="display:none;"></div>
+                <div id="predLoading" style="color:#6b7280;font-size:0.8rem;padding:10px;">Click NIFTY / BANKNIFTY / SENSEX to load predictions.</div>
+            </div>
+        </div>
 
         <!-- Live Trade Tab -->
         <div class="tab-content" id="tab-livetrade">
@@ -572,7 +580,6 @@ function renderOverview(d) {
 // Chart
 function loadChart(symbol) {
     if (!symbol) { symbol = 'NIFTY'; }
-    loadChartPredictions(symbol);
     fetch(`/api/chart-data/${symbol}`).then(r=>r.json()).then(data => {
         if (data.error) { console.error('Chart error:', data.error); return; }
         const cd = data.chart_data, sr = data.support_resistance, dates = cd.map(d=>d.date);
