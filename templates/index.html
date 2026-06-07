@@ -168,6 +168,8 @@
         <input type="text" id="customStock" placeholder="Symbol..." style="width:100px;">
         <button class="btn btn-blue" id="analyzeBtn" onclick="runAnalysis()">Analyze</button>
         <button class="btn btn-blue" onclick="openBuySell()" style="background:linear-gradient(135deg,#22c55e,#16a34a);">💹 Buy-Sell</button>
+        <div class="sep"></div>
+        <span style="font-size:0.65rem;color:#6b7280;">👤 Visits: {{ visits }} | 📄 Views: {{ page_views }}</span>
     </div>
 
     <!-- Sidebar -->
@@ -249,6 +251,17 @@
                 </div>
                 <div class="chart-box" id="priceChart"></div>
                 <p style="font-size:0.68rem;color:#4b5563;margin-top:8px;">Green ▲ = Buy Signal | Red ▼ = Sell Signal | Green dash = Support | Red dash = Resistance | Blue = EMA 20 | Orange = SMA 50</p>
+            </div>
+
+            <!-- Bullish / Bearish Prediction Tabs -->
+            <div class="card">
+                <div style="display:flex;gap:0;margin-bottom:12px;">
+                    <button class="btn" id="bullTabBtn" onclick="showPredTab('bull')" style="flex:1;border-radius:8px 0 0 8px;background:#22c55e;color:#fff;">📈 Bullish Prediction</button>
+                    <button class="btn" id="bearTabBtn" onclick="showPredTab('bear')" style="flex:1;border-radius:0 8px 8px 0;background:#374151;color:#9ca3af;">📉 Bearish Prediction</button>
+                </div>
+                <div id="bullPrediction" style="display:block;"></div>
+                <div id="bearPrediction" style="display:none;"></div>
+                <div id="predLoading" style="color:#6b7280;font-size:0.8rem;padding:10px;">Loading predictions...</div>
             </div>
         </div>
 
@@ -488,6 +501,10 @@ function switchTab(tab) {
             s.classList.add('active');
         }
     });
+    // Auto-load chart when switching to chart tab
+    if (tab === 'chart' && !document.getElementById('priceChart').hasChildNodes()) {
+        loadChart('NIFTY');
+    }
 }
 
 // Main Analysis
@@ -555,6 +572,7 @@ function renderOverview(d) {
 // Chart
 function loadChart(symbol) {
     if (!symbol) { symbol = 'NIFTY'; }
+    loadChartPredictions(symbol);
     fetch(`/api/chart-data/${symbol}`).then(r=>r.json()).then(data => {
         if (data.error) { console.error('Chart error:', data.error); return; }
         const cd = data.chart_data, sr = data.support_resistance, dates = cd.map(d=>d.date);
@@ -612,6 +630,74 @@ function loadChart(symbol) {
             margin:{t:8,b:50,l:55,r:8},
         }, {responsive:true, displayModeBar:false});
     }).catch(e => console.error('Chart load failed:', e));
+}
+
+// Bullish/Bearish Prediction Tabs
+function showPredTab(tab) {
+    document.getElementById('bullPrediction').style.display = tab === 'bull' ? 'block' : 'none';
+    document.getElementById('bearPrediction').style.display = tab === 'bear' ? 'block' : 'none';
+    document.getElementById('bullTabBtn').style.background = tab === 'bull' ? '#22c55e' : '#374151';
+    document.getElementById('bullTabBtn').style.color = tab === 'bull' ? '#fff' : '#9ca3af';
+    document.getElementById('bearTabBtn').style.background = tab === 'bear' ? '#ef4444' : '#374151';
+    document.getElementById('bearTabBtn').style.color = tab === 'bear' ? '#fff' : '#9ca3af';
+}
+
+function loadChartPredictions(symbol) {
+    var bullEl = document.getElementById('bullPrediction');
+    var bearEl = document.getElementById('bearPrediction');
+    var loadEl = document.getElementById('predLoading');
+    loadEl.style.display = 'none';
+
+    fetch('/api/quantedge/' + symbol).then(function(r){return r.json()}).then(function(d) {
+        if (d.error) { bullEl.innerHTML = '<p class="red">' + d.error + '</p>'; return; }
+
+        var spot = d.spot_price;
+        var step = d.config ? d.config.strike_step : 50;
+        var atm = d.atm_strike || Math.round(spot / step) * step;
+        var iv = d.iv || 15;
+        var today = new Date();
+        var expiry = new Date(today);
+        expiry.setDate(today.getDate() + (4 - today.getDay() + 7) % 7 || 7); // Next Thursday
+        var expiryStr = expiry.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+
+        // Bullish prediction (CE side)
+        var html = '<h3 style="color:#22c55e;font-size:0.85rem;margin-bottom:10px;">📈 Bullish Prediction — BUY CE</h3>';
+        html += '<div class="row"><span class="lbl">Expiry</span><span class="val">' + expiryStr + '</span></div>';
+        html += '<div class="row"><span class="lbl">Spot</span><span class="val">₹' + spot + '</span></div>';
+        html += '<div class="row"><span class="lbl">IV</span><span class="val">' + iv + '%</span></div>';
+        html += '<table style="width:100%;font-size:0.75rem;margin-top:10px;border-collapse:collapse;">';
+        html += '<tr style="color:#6b7280;border-bottom:1px solid #1f2937;"><th style="padding:6px;text-align:left;">Type</th><th>Strike</th><th>CE Price</th><th>Delta</th><th>Action</th></tr>';
+
+        var oc = d.option_chain || {};
+        var ce = oc.ce || {};
+        // ITM
+        html += '<tr style="border-bottom:1px solid #1f2937;background:rgba(34,197,94,0.05);"><td style="padding:6px;">ITM</td><td>' + (ce.itm?ce.itm.strike:atm-step) + '</td><td>₹' + (ce.itm?ce.itm.price:'-') + '</td><td>0.65+</td><td style="color:#22c55e;">BUY</td></tr>';
+        // ATM
+        html += '<tr style="border-bottom:1px solid #1f2937;background:rgba(34,197,94,0.1);font-weight:600;"><td style="padding:6px;">ATM ★</td><td>' + atm + '</td><td>₹' + (ce.atm?ce.atm.price:'-') + '</td><td>' + (ce.atm&&ce.atm.greeks?ce.atm.greeks.delta:'0.50') + '</td><td style="color:#22c55e;">BUY</td></tr>';
+        // OTM
+        html += '<tr style="border-bottom:1px solid #1f2937;"><td style="padding:6px;">OTM</td><td>' + (ce.otm?ce.otm.strike:atm+step) + '</td><td>₹' + (ce.otm?ce.otm.price:'-') + '</td><td>0.35-</td><td style="color:#22c55e;">BUY</td></tr>';
+        html += '</table>';
+        html += '<p style="font-size:0.7rem;color:#9ca3af;margin-top:8px;">Recommendation: Buy ATM CE ' + atm + ' for highest delta exposure.</p>';
+        bullEl.innerHTML = html;
+
+        // Bearish prediction (PE side)
+        var pe = oc.pe || {};
+        html = '<h3 style="color:#ef4444;font-size:0.85rem;margin-bottom:10px;">📉 Bearish Prediction — BUY PE</h3>';
+        html += '<div class="row"><span class="lbl">Expiry</span><span class="val">' + expiryStr + '</span></div>';
+        html += '<div class="row"><span class="lbl">Spot</span><span class="val">₹' + spot + '</span></div>';
+        html += '<div class="row"><span class="lbl">IV</span><span class="val">' + iv + '%</span></div>';
+        html += '<table style="width:100%;font-size:0.75rem;margin-top:10px;border-collapse:collapse;">';
+        html += '<tr style="color:#6b7280;border-bottom:1px solid #1f2937;"><th style="padding:6px;text-align:left;">Type</th><th>Strike</th><th>PE Price</th><th>Delta</th><th>Action</th></tr>';
+        // OTM PE
+        html += '<tr style="border-bottom:1px solid #1f2937;"><td style="padding:6px;">OTM</td><td>' + (pe.otm?pe.otm.strike:atm-step) + '</td><td>₹' + (pe.otm?pe.otm.price:'-') + '</td><td>-0.35</td><td style="color:#ef4444;">BUY</td></tr>';
+        // ATM PE
+        html += '<tr style="border-bottom:1px solid #1f2937;background:rgba(239,68,68,0.1);font-weight:600;"><td style="padding:6px;">ATM ★</td><td>' + atm + '</td><td>₹' + (pe.atm?pe.atm.price:'-') + '</td><td>' + (pe.atm&&pe.atm.greeks?pe.atm.greeks.delta:'-0.50') + '</td><td style="color:#ef4444;">BUY</td></tr>';
+        // ITM PE
+        html += '<tr style="border-bottom:1px solid #1f2937;background:rgba(239,68,68,0.05);"><td style="padding:6px;">ITM</td><td>' + (pe.itm?pe.itm.strike:atm+step) + '</td><td>₹' + (pe.itm?pe.itm.price:'-') + '</td><td>-0.65</td><td style="color:#ef4444;">BUY</td></tr>';
+        html += '</table>';
+        html += '<p style="font-size:0.7rem;color:#9ca3af;margin-top:8px;">Recommendation: Buy ATM PE ' + atm + ' for highest delta exposure.</p>';
+        bearEl.innerHTML = html;
+    }).catch(function(e) { bullEl.innerHTML = '<p class="red">Error: ' + (e.message||e) + '</p>'; });
 }
 
 // Technical

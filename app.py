@@ -31,6 +31,26 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.secret_key = FLASK_SECRET_KEY
 app.config['JSON_SORT_KEYS'] = False
 
+# ─── Visit Counter ──────────────────────────────────────────────────────────────
+import os as _os
+_counter_file = _os.path.join(_os.path.dirname(__file__), "data", "cache", "visit_counter.json")
+
+def _load_counter():
+    try:
+        with open(_counter_file, "r") as f:
+            return json.load(f)
+    except Exception:
+        return {"total_visits": 0, "page_views": 0}
+
+def _save_counter(data):
+    try:
+        with open(_counter_file, "w") as f:
+            json.dump(data, f)
+    except Exception:
+        pass
+
+visit_data = _load_counter()
+
 
 # Fix NaN in JSON responses
 import math as _math
@@ -87,7 +107,10 @@ _usa_news_cache = {}
 @app.route("/")
 def index():
     """Home page with stock selection."""
-    return render_template("index.html", stocks=SAMPLE_STOCKS)
+    visit_data["total_visits"] += 1
+    visit_data["page_views"] += 1
+    _save_counter(visit_data)
+    return render_template("index.html", stocks=SAMPLE_STOCKS, visits=visit_data["total_visits"], page_views=visit_data["page_views"])
 
 
 @app.route("/analyze", methods=["POST"])
