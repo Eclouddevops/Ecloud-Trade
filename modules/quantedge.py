@@ -109,8 +109,9 @@ class QuantEdgeEngine:
         else:
             hv = 0.15  # Default 15% volatility
 
-        # Time to expiry (assume weekly expiry, ~3 days avg)
-        T = 3 / 365
+        # Calculate correct expiry date
+        expiry_date, days_to_expiry = self._get_next_expiry(symbol.upper())
+        T = max(days_to_expiry, 1) / 365
         r = 0.065  # RBI repo rate ~6.5%
 
         # Black-Scholes pricing
@@ -207,8 +208,47 @@ class QuantEdgeEngine:
             },
             "greeks": {"ce": ce_greeks, "pe": pe_greeks},
             "config": {"lot_size": lot_size, "strike_step": step},
+            "expiry": expiry_date.strftime("%d %b %Y (%A)"),
+            "days_to_expiry": days_to_expiry,
             "timestamp": datetime.now().isoformat(),
         }
+
+    def _get_next_expiry(self, symbol: str):
+        """
+        Get next weekly expiry date for the given index.
+        NIFTY = Thursday, BANKNIFTY = Wednesday, SENSEX = Friday,
+        FINNIFTY = Tuesday, MIDCPNIFTY = Monday
+        """
+        from datetime import timedelta
+
+        # Expiry day mapping (0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri)
+        expiry_days = {
+            "NIFTY": 3,      # Thursday
+            "NIFTY50": 3,    # Thursday
+            "BANKNIFTY": 2,  # Wednesday
+            "SENSEX": 4,     # Friday
+            "FINNIFTY": 1,   # Tuesday
+            "MIDCPNIFTY": 0, # Monday
+        }
+
+        target_day = expiry_days.get(symbol, 3)  # Default Thursday
+        today = datetime.now().date()
+        current_day = today.weekday()
+
+        # Calculate days until next expiry
+        days_ahead = target_day - current_day
+        if days_ahead < 0:
+            days_ahead += 7
+        elif days_ahead == 0:
+            # If today is expiry day, check if market is still open
+            now = datetime.now()
+            if now.hour >= 15 and now.minute >= 30:
+                days_ahead = 7  # Move to next week
+
+        expiry = today + timedelta(days=days_ahead)
+        days_to_expiry = (expiry - today).days
+
+        return expiry, max(days_to_expiry, 1)
 
     def _estimate_pcr(self, df: pd.DataFrame, spot: float) -> float:
         """Estimate PCR from price action (proxy when real OI unavailable)."""

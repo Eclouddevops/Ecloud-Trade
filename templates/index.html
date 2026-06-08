@@ -304,14 +304,14 @@
             </div>
             <div class="card"><h3>Pattern Reference</h3>
                 <div class="card-grid">
-                    <div class="pattern-card"><div class="name">🔨 Hammer</div><div class="desc">Small body, long lower wick after downtrend. Market reversal upward.</div><span class="badge badge-buy">BUY Signal</span></div>
-                    <div class="pattern-card"><div class="name">⭐ Shooting Star</div><div class="desc">Small body, long upper shadow after uptrend. Market goes down.</div><span class="badge badge-sell">SELL Signal</span></div>
-                    <div class="pattern-card"><div class="name">💪 Three White Soldiers</div><div class="desc">Three consecutive bullish candles closing higher. Strong uptrend.</div><span class="badge badge-buy">STRONG BUY</span></div>
-                    <div class="pattern-card"><div class="name">🐦‍⬛ Three Black Crows</div><div class="desc">Three consecutive bearish candles closing lower. Market goes down.</div><span class="badge badge-sell">STRONG SELL</span></div>
-                    <div class="pattern-card"><div class="name">🟢 Green Marubozu</div><div class="desc">Large green candle in red trend = buyers taking control. Market goes up.</div><span class="badge badge-buy">BUY Signal</span></div>
-                    <div class="pattern-card"><div class="name">🔴 Red Marubozu</div><div class="desc">Large red candle in green trend = sellers taking control. Market goes down.</div><span class="badge badge-sell">SELL Signal</span></div>
-                    <div class="pattern-card"><div class="name">🟩 Bullish Engulfing</div><div class="desc">Green candle engulfs previous red candle with follow-up green. Reversal up.</div><span class="badge badge-buy">BUY Signal</span></div>
-                    <div class="pattern-card"><div class="name">🟥 Bearish Engulfing</div><div class="desc">Red candle engulfs previous green candle. Reversal downward.</div><span class="badge badge-sell">SELL Signal</span></div>
+                    <div class="pattern-card"><div class="name" style="display:flex;align-items:center;gap:8px;"><svg width="32" height="32" viewBox="0 0 32 32"><rect x="14" y="12" width="4" height="6" fill="#22c55e"/><line x1="16" y1="18" x2="16" y2="28" stroke="#22c55e" stroke-width="2"/><line x1="16" y1="12" x2="16" y2="10" stroke="#22c55e" stroke-width="2"/></svg>Hammer</div><div class="desc">Small body at top, long lower wick (2x body). Appears after downtrend. Signals reversal upward.</div><span class="badge badge-buy">BUY Signal</span></div>
+                    <div class="pattern-card"><div class="name" style="display:flex;align-items:center;gap:8px;"><svg width="32" height="32" viewBox="0 0 32 32"><rect x="14" y="20" width="4" height="6" fill="#ef4444"/><line x1="16" y1="20" x2="16" y2="4" stroke="#ef4444" stroke-width="2"/><line x1="16" y1="26" x2="16" y2="28" stroke="#ef4444" stroke-width="2"/></svg>Shooting Star</div><div class="desc">Small body at bottom, long upper shadow (2x body). Appears after uptrend. Market reverses down.</div><span class="badge badge-sell">SELL Signal</span></div>
+                    <div class="pattern-card"><div class="name" style="display:flex;align-items:center;gap:8px;"><svg width="48" height="32" viewBox="0 0 48 32"><rect x="4" y="18" width="4" height="10" fill="#22c55e"/><rect x="14" y="14" width="4" height="10" fill="#22c55e"/><rect x="24" y="10" width="4" height="10" fill="#22c55e"/></svg>Three White Soldiers</div><div class="desc">Three consecutive long green candles, each closing higher than previous. Strong bullish momentum.</div><span class="badge badge-buy">STRONG BUY</span></div>
+                    <div class="pattern-card"><div class="name" style="display:flex;align-items:center;gap:8px;"><svg width="48" height="32" viewBox="0 0 48 32"><rect x="4" y="4" width="4" height="10" fill="#ef4444"/><rect x="14" y="8" width="4" height="10" fill="#ef4444"/><rect x="24" y="12" width="4" height="10" fill="#ef4444"/></svg>Three Black Crows</div><div class="desc">Three consecutive long red candles, each closing lower. Strong bearish momentum. Market goes down.</div><span class="badge badge-sell">STRONG SELL</span></div>
+                    <div class="pattern-card"><div class="name" style="display:flex;align-items:center;gap:8px;"><svg width="32" height="32" viewBox="0 0 32 32"><rect x="12" y="4" width="8" height="24" fill="#22c55e"/></svg>Green Marubozu</div><div class="desc">Full green body with no wicks. Buyers completely dominate. Appears in red trend = reversal up.</div><span class="badge badge-buy">BUY Signal</span></div>
+                    <div class="pattern-card"><div class="name" style="display:flex;align-items:center;gap:8px;"><svg width="32" height="32" viewBox="0 0 32 32"><rect x="12" y="4" width="8" height="24" fill="#ef4444"/></svg>Red Marubozu</div><div class="desc">Full red body with no wicks. Sellers completely dominate. Appears in green trend = reversal down.</div><span class="badge badge-sell">SELL Signal</span></div>
+                    <div class="pattern-card"><div class="name" style="display:flex;align-items:center;gap:8px;"><svg width="40" height="32" viewBox="0 0 40 32"><rect x="6" y="14" width="6" height="10" fill="#ef4444"/><rect x="18" y="8" width="8" height="18" fill="#22c55e"/></svg>Bullish Engulfing</div><div class="desc">Large green candle completely engulfs previous small red candle. Strong reversal upward signal.</div><span class="badge badge-buy">BUY Signal</span></div>
+                    <div class="pattern-card"><div class="name" style="display:flex;align-items:center;gap:8px;"><svg width="40" height="32" viewBox="0 0 40 32"><rect x="6" y="8" width="6" height="10" fill="#22c55e"/><rect x="18" y="6" width="8" height="18" fill="#ef4444"/></svg>Bearish Engulfing</div><div class="desc">Large red candle completely engulfs previous small green candle. Strong reversal downward signal.</div><span class="badge badge-sell">SELL Signal</span></div>
                 </div>
             </div>
         </div>
@@ -513,6 +513,14 @@ function switchTab(tab) {
     if (tab === 'chart' && !document.getElementById('priceChart').hasChildNodes()) {
         loadChart('NIFTY');
     }
+    // Auto-load Buy-Sell data
+    if (tab === 'buysell') {
+        loadBuySellData();
+    }
+    // Auto-load QuantEdge
+    if (tab === 'quantedge') {
+        loadQuantEdge('NIFTY');
+    }
 }
 
 // Main Analysis
@@ -663,13 +671,12 @@ function loadChartPredictions(symbol) {
         var atm = d.atm_strike || Math.round(spot / step) * step;
         var iv = d.iv || 15;
         var today = new Date();
-        var expiry = new Date(today);
-        expiry.setDate(today.getDate() + (4 - today.getDay() + 7) % 7 || 7); // Next Thursday
-        var expiryStr = expiry.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+        var expiryStr = d.expiry || 'Next Expiry';
+        var daysToExp = d.days_to_expiry || '?';
 
         // Bullish prediction (CE side)
         var html = '<h3 style="color:#22c55e;font-size:0.85rem;margin-bottom:10px;">📈 Bullish Prediction — BUY CE</h3>';
-        html += '<div class="row"><span class="lbl">Expiry</span><span class="val">' + expiryStr + '</span></div>';
+        html += '<div class="row"><span class="lbl">Expiry</span><span class="val">' + expiryStr + ' (' + daysToExp + ' days)</span></div>';
         html += '<div class="row"><span class="lbl">Spot</span><span class="val">₹' + spot + '</span></div>';
         html += '<div class="row"><span class="lbl">IV</span><span class="val">' + iv + '%</span></div>';
         html += '<table style="width:100%;font-size:0.75rem;margin-top:10px;border-collapse:collapse;">';
@@ -690,7 +697,7 @@ function loadChartPredictions(symbol) {
         // Bearish prediction (PE side)
         var pe = oc.pe || {};
         html = '<h3 style="color:#ef4444;font-size:0.85rem;margin-bottom:10px;">📉 Bearish Prediction — BUY PE</h3>';
-        html += '<div class="row"><span class="lbl">Expiry</span><span class="val">' + expiryStr + '</span></div>';
+        html += '<div class="row"><span class="lbl">Expiry</span><span class="val">' + expiryStr + ' (' + daysToExp + ' days)</span></div>';
         html += '<div class="row"><span class="lbl">Spot</span><span class="val">₹' + spot + '</span></div>';
         html += '<div class="row"><span class="lbl">IV</span><span class="val">' + iv + '%</span></div>';
         html += '<table style="width:100%;font-size:0.75rem;margin-top:10px;border-collapse:collapse;">';
@@ -1618,7 +1625,7 @@ function loadQuantEdge(idx) {
         var html = '';
         // Signal banner
         html += '<div class="signal-banner ' + cls + '" style="margin-bottom:12px;">';
-        html += '<div class="left"><h2>' + d.symbol + '</h2><p>Spot: ₹' + d.spot_price + ' | IV: ' + d.iv + '% | PCR: ' + d.pcr + '</p></div>';
+        html += '<div class="left"><h2>' + d.symbol + '</h2><p>Spot: ₹' + d.spot_price + ' | IV: ' + d.iv + '% | PCR: ' + d.pcr + '</p><p style="font-size:0.68rem;color:#6b7280;">Expiry: ' + (d.expiry||'N/A') + ' (' + (d.days_to_expiry||'?') + ' days)</p></div>';
         html += '<div class="right"><div class="rec ' + cls + '">' + d.recommendation + '</div>';
         html += '<p style="font-size:0.72rem;color:#9ca3af;">Strategy: ' + d.strategy + ' | R:R ' + s.risk_reward + '</p></div></div>';
 
@@ -1827,39 +1834,39 @@ function renderOrderHistory() {
     updateClock();
 })();
 
-// ─── Live Price Auto-Refresh (every 5 seconds) ────────────────────────
+// ─── Live Price Stream (SSE - every 3 seconds) ────────────────────────
 (function() {
-    let lastPrices = {};
-    let refreshCount = 0;
+    var refreshCount = 0;
+    var evtSource = null;
 
-    function fetchLivePrices() {
-        fetch('/api/live-prices')
-            .then(r => {
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                return r.json();
-            })
-            .then(data => {
-                if (data.error) { console.warn('Live prices error:', data.error); return; }
+    function connectStream() {
+        evtSource = new EventSource('/api/live-stream');
+
+        evtSource.onmessage = function(event) {
+            try {
+                var data = JSON.parse(event.data);
+                if (data.error) return;
                 refreshCount++;
-                lastPrices = data;
-                // Update tickers
                 if (data.NIFTY) updateTicker('NIFTY', data.NIFTY, 'tickerNifty');
                 if (data.BANKNIFTY) updateTicker('BANKNIFTY', data.BANKNIFTY, 'tickerBanknifty');
                 if (data.SENSEX) updateTicker('SENSEX', data.SENSEX, 'tickerSensex');
-                // Status
                 var mkt = data.market_status === 'Open' ? '🟢' : '🔴';
                 var broker = data.broker ? data.broker.split('(')[0].trim() : 'NSE';
                 var statusEl = document.getElementById('tickerStatus');
                 if (statusEl) {
-                    statusEl.textContent = mkt + ' ' + broker + ' #' + refreshCount;
+                    statusEl.textContent = mkt + ' ' + broker + ' • Live #' + refreshCount;
                     statusEl.style.color = data.market_status === 'Open' ? '#22c55e' : '#ef4444';
                 }
-            })
-            .catch(function(err) {
-                console.warn('Live fetch failed:', err);
-                var statusEl = document.getElementById('tickerStatus');
-                if (statusEl) { statusEl.textContent = '🔴 Retry...'; statusEl.style.color = '#ef4444'; }
-            });
+            } catch(e) {}
+        };
+
+        evtSource.onerror = function() {
+            var statusEl = document.getElementById('tickerStatus');
+            if (statusEl) { statusEl.textContent = '🔴 Reconnecting...'; statusEl.style.color = '#ef4444'; }
+            evtSource.close();
+            // Reconnect after 5 seconds
+            setTimeout(connectStream, 5000);
+        };
     }
 
     function updateTicker(name, data, elId) {
@@ -1871,9 +1878,8 @@ function renderOrderHistory() {
         el.innerHTML = '<span>' + name + '</span><span style="color:' + color + ';font-weight:600;">' + data.price.toLocaleString() + ' ' + arrow + Math.abs(data.change_pct).toFixed(2) + '%</span>';
     }
 
-    // Start immediately and repeat every 5 seconds
-    setTimeout(fetchLivePrices, 1000);
-    setInterval(fetchLivePrices, 5000);
+    // Start SSE stream after 1 second
+    setTimeout(connectStream, 1000);
 })();
 
 document.getElementById('customStock').addEventListener('keypress',e=>{if(e.key==='Enter')runAnalysis();});

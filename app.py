@@ -617,6 +617,36 @@ def live_prices():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/live-stream")
+def live_stream():
+    """
+    Server-Sent Events (SSE) stream for live price updates.
+    Pushes NIFTY/BANKNIFTY/SENSEX prices every 3 seconds.
+    Connect from frontend: new EventSource('/api/live-stream')
+    """
+    import time
+
+    def generate():
+        while True:
+            try:
+                data = nse_live.get_live_prices()
+                if "error" not in data:
+                    yield f"data: {json.dumps(data)}\n\n"
+                else:
+                    fallback = broker_mgr.get_live_prices()
+                    yield f"data: {json.dumps(fallback)}\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            time.sleep(3)
+
+    from flask import Response
+    return Response(generate(), mimetype='text/event-stream', headers={
+        'Cache-Control': 'no-cache',
+        'X-Accel-Buffering': 'no',
+        'Connection': 'keep-alive',
+    })
+
+
 @app.route("/api/broker-status")
 def broker_status():
     """Check which broker is active and configured."""
