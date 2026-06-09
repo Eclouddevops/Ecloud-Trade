@@ -198,6 +198,7 @@
         <div class="sidebar-item" onclick="switchTab('livetrade')" style="border-left-color:#22c55e;"><span class="icon">🔥</span>Live Trade</div>
         <div class="sidebar-item" onclick="switchTab('buysell')" style="border-left-color:#22c55e;"><span class="icon">💹</span>Buy-Sell</div>
         <div class="sidebar-item" onclick="switchTab('quantedge')"><span class="icon">⚡</span>QuantEdge</div>
+        <div class="sidebar-item" onclick="switchTab('nifty50')"><span class="icon">🏛️</span>Nifty 50</div>
         <div class="sidebar-section">Smart AI</div>
         <div class="sidebar-item" onclick="switchTab('tomorrow')"><span class="icon">🔮</span>Tomorrow</div>
         <div class="sidebar-item" onclick="switchTab('probstrategy')"><span class="icon">📊</span>Probability</div>
@@ -422,6 +423,24 @@
             </div>
         </div>
 
+        <!-- Nifty 50 Stocks Tab -->
+        <div class="tab-content" id="tab-nifty50">
+            <div class="card"><h3>🏛️ Nifty Top 50 Stocks — Buy/Sell Signals</h3>
+                <p style="font-size:0.73rem;color:#9ca3af;margin-bottom:10px;">Click any stock to see detailed entry/exit with ATM strike. Signals based on RSI, MACD, EMA analysis.</p>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+                    <button class="btn btn-ghost" onclick="filterNiftyStocks('all')" style="font-size:0.68rem;">All</button>
+                    <button class="btn btn-ghost" onclick="filterNiftyStocks('banking')" style="font-size:0.68rem;">Banking</button>
+                    <button class="btn btn-ghost" onclick="filterNiftyStocks('it')" style="font-size:0.68rem;">IT</button>
+                    <button class="btn btn-ghost" onclick="filterNiftyStocks('energy')" style="font-size:0.68rem;">Energy</button>
+                    <button class="btn btn-ghost" onclick="filterNiftyStocks('auto')" style="font-size:0.68rem;">Auto</button>
+                    <button class="btn btn-ghost" onclick="filterNiftyStocks('fmcg')" style="font-size:0.68rem;">FMCG</button>
+                    <button class="btn btn-ghost" onclick="filterNiftyStocks('pharma')" style="font-size:0.68rem;">Pharma</button>
+                </div>
+                <div id="nifty50List"><p style="color:#6b7280;font-size:0.8rem;">Loading stocks...</p></div>
+                <div id="nifty50Detail" style="display:none;margin-top:12px;"></div>
+            </div>
+        </div>
+
         <!-- Tomorrow Prediction Tab -->
         <div class="tab-content" id="tab-tomorrow">
             <div class="card"><h3>🔮 Tomorrow Prediction — Next Day Forecast</h3>
@@ -520,6 +539,10 @@ function switchTab(tab) {
     // Auto-load QuantEdge
     if (tab === 'quantedge') {
         loadQuantEdge('NIFTY');
+    }
+    // Auto-load Nifty50 list
+    if (tab === 'nifty50') {
+        renderNifty50List();
     }
 }
 
@@ -1887,7 +1910,62 @@ function renderOrderHistory() {
     setTimeout(connectWebSocket, 500);
 })();
 
-document.getElementById('customStock').addEventListener('keypress',e=>{if(e.key==='Enter')runAnalysis();});
+// Nifty 50 Stocks
+var NIFTY50_STOCKS = {
+    banking: [{s:'HDFCBANK',n:'HDFC Bank'},{s:'ICICIBANK',n:'ICICI Bank'},{s:'SBIN',n:'SBI'},{s:'KOTAKBANK',n:'Kotak Bank'},{s:'AXISBANK',n:'Axis Bank'},{s:'BAJFINANCE',n:'Bajaj Finance'},{s:'BAJAJFINSV',n:'Bajaj Finserv'},{s:'SBILIFE',n:'SBI Life'},{s:'SHRIRAMFIN',n:'Shriram Finance'}],
+    it: [{s:'TCS',n:'TCS'},{s:'INFY',n:'Infosys'},{s:'HCLTECH',n:'HCL Tech'},{s:'WIPRO',n:'Wipro'},{s:'TECHM',n:'Tech Mahindra'}],
+    energy: [{s:'RELIANCE',n:'Reliance'},{s:'ONGC',n:'ONGC'},{s:'BPCL',n:'BPCL'},{s:'NTPC',n:'NTPC'},{s:'POWERGRID',n:'Power Grid'},{s:'COALINDIA',n:'Coal India'}],
+    auto: [{s:'MARUTI',n:'Maruti Suzuki'},{s:'M&M',n:'Mahindra'},{s:'TATAMOTORS',n:'Tata Motors'},{s:'HEROMOTOCO',n:'Hero Moto'},{s:'EICHERMOT',n:'Eicher Motors'}],
+    fmcg: [{s:'HINDUNILVR',n:'HUL'},{s:'ITC',n:'ITC'},{s:'NESTLEIND',n:'Nestle'},{s:'BRITANNIA',n:'Britannia'},{s:'TATACONSUM',n:'Tata Consumer'},{s:'TITAN',n:'Titan'}],
+    pharma: [{s:'SUNPHARMA',n:'Sun Pharma'},{s:'DRREDDY',n:'Dr Reddy'},{s:'CIPLA',n:'Cipla'},{s:'APOLLOHOSP',n:'Apollo Hospitals'}],
+    metals: [{s:'TATASTEEL',n:'Tata Steel'},{s:'JSWSTEEL',n:'JSW Steel'},{s:'HINDALCO',n:'Hindalco'}],
+    infra: [{s:'LT',n:'L&T'},{s:'BEL',n:'Bharat Electronics'},{s:'ADANIENT',n:'Adani Ent'},{s:'ADANIPORTS',n:'Adani Ports'}],
+    others: [{s:'BHARTIARTL',n:'Airtel'},{s:'ULTRACEMCO',n:'UltraTech'},{s:'GRASIM',n:'Grasim'},{s:'ASIANPAINT',n:'Asian Paints'},{s:'TRENT',n:'Trent'}],
+};
+var currentNiftyFilter = 'all';
+
+function filterNiftyStocks(sector) { currentNiftyFilter = sector; renderNifty50List(); }
+
+function renderNifty50List() {
+    var el = document.getElementById('nifty50List');
+    var stocks = [];
+    if (currentNiftyFilter === 'all') { Object.values(NIFTY50_STOCKS).forEach(function(arr){stocks=stocks.concat(arr);}); }
+    else { stocks = NIFTY50_STOCKS[currentNiftyFilter] || []; }
+    var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;">';
+    stocks.forEach(function(stock) {
+        html += '<div style="background:#1a2332;border:1px solid #1f2937;border-radius:6px;padding:8px;cursor:pointer;" onclick="loadStockDetail(\'' + stock.s + '\')">';
+        html += '<div style="font-weight:600;font-size:0.78rem;">' + stock.s + '</div>';
+        html += '<div style="font-size:0.65rem;color:#6b7280;">' + stock.n + '</div></div>';
+    });
+    html += '</div>';
+    el.innerHTML = html;
+}
+
+function loadStockDetail(symbol) {
+    var el = document.getElementById('nifty50Detail');
+    el.style.display = 'block';
+    el.innerHTML = '<p style="color:#6b7280;font-size:0.8rem;">Loading ' + symbol + '...</p>';
+    fetch('/api/stock-signal/' + symbol).then(function(r){return r.json()}).then(function(d) {
+        if (d.error) { el.innerHTML = '<p class="red">' + d.error + '</p>'; return; }
+        var cls = d.signal==='BUY'?'buy':d.signal==='SELL'?'sell':'hold';
+        var color = d.change_pct > 0 ? '#22c55e' : '#ef4444';
+        var html = '<div class="signal-banner ' + cls + '" style="margin-bottom:10px;">';
+        html += '<div class="left"><h2>' + d.symbol + '</h2><p>₹' + d.price + ' <span style="color:' + color + '">(' + (d.change_pct>0?'+':'') + d.change_pct + '%)</span></p></div>';
+        html += '<div class="right"><div class="rec ' + cls + '">' + d.signal + '</div></div></div>';
+        html += '<div class="card-grid"><div class="card"><h3>Trade Setup</h3>';
+        html += '<div class="row"><span class="lbl">Entry</span><span class="val">₹' + d.entry + '</span></div>';
+        html += '<div class="row"><span class="lbl">Stop Loss</span><span class="val red">₹' + d.stop_loss + '</span></div>';
+        html += '<div class="row"><span class="lbl">Target 1</span><span class="val green">₹' + d.target_1 + '</span></div>';
+        html += '<div class="row"><span class="lbl">Target 2</span><span class="val green">₹' + d.target_2 + '</span></div>';
+        html += '<div class="row"><span class="lbl">ATR</span><span class="val">' + d.atr + '</span></div></div>';
+        html += '<div class="card"><h3>Indicators</h3>';
+        html += '<div class="row"><span class="lbl">RSI</span><span class="val">' + d.rsi + '</span></div>';
+        html += '<div class="row"><span class="lbl">MACD</span><span class="val">' + d.macd + '</span></div>';
+        html += '<div class="row"><span class="lbl">EMA</span><span class="val">' + d.ema + '</span></div></div></div>';
+        html += '<button class="btn btn-ghost" onclick="document.getElementById(\'nifty50Detail\').style.display=\'none\'" style="margin-top:8px;font-size:0.7rem;">✕ Close</button>';
+        el.innerHTML = html;
+    }).catch(function(e) { el.innerHTML = '<p class="red">Error: ' + (e.message||e) + '</p>'; });
+}
 </script>
 </body>
 </html>

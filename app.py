@@ -1288,6 +1288,49 @@ def _format_chat_response(message: str, result: dict) -> str:
     return response
 
 
+@app.route("/api/stock-signal/<symbol>")
+def stock_signal(symbol: str):
+    """Quick technical signal for a single stock."""
+    try:
+        symbol = symbol.upper()
+        df = data_collector.get_stock_data(symbol, period="3mo")
+        import ta as ta_lib
+        close = df["close"]
+        price = round(float(close.iloc[-1]), 2)
+        rsi = float(ta_lib.momentum.RSIIndicator(close=close, window=14).rsi().iloc[-1])
+        macd_ind = ta_lib.trend.MACD(close=close)
+        macd_hist = float(macd_ind.macd_diff().iloc[-1])
+        ema_9 = float(ta_lib.trend.EMAIndicator(close=close, window=9).ema_indicator().iloc[-1])
+        ema_21 = float(ta_lib.trend.EMAIndicator(close=close, window=21).ema_indicator().iloc[-1])
+        atr = float(ta_lib.volatility.AverageTrueRange(high=df["high"], low=df["low"], close=close, window=14).average_true_range().iloc[-1])
+
+        # Signal
+        score = 0
+        if rsi > 55: score += 1
+        elif rsi < 45: score -= 1
+        if macd_hist > 0: score += 1
+        else: score -= 1
+        if ema_9 > ema_21: score += 1
+        else: score -= 1
+
+        signal = "BUY" if score >= 2 else "SELL" if score <= -2 else "HOLD"
+        entry = round(price, 2)
+        sl = round(price - atr * 1.5, 2) if signal == "BUY" else round(price + atr * 1.5, 2)
+        t1 = round(price + atr * 1.0, 2) if signal == "BUY" else round(price - atr * 1.0, 2)
+        t2 = round(price + atr * 2.0, 2) if signal == "BUY" else round(price - atr * 2.0, 2)
+
+        return safe_jsonify({
+            "symbol": symbol, "price": price, "signal": signal,
+            "rsi": round(rsi, 1), "macd": "Bullish" if macd_hist > 0 else "Bearish",
+            "ema": "Bullish" if ema_9 > ema_21 else "Bearish",
+            "entry": entry, "stop_loss": sl, "target_1": t1, "target_2": t2,
+            "atr": round(atr, 2),
+            "change_pct": round(float((close.iloc[-1] - close.iloc[-2]) / close.iloc[-2] * 100), 2),
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # ─── WebSocket Events ───────────────────────────────────────────────────────────
 import threading
 import time as _time
