@@ -9,6 +9,7 @@ import json
 import re
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify
+from flask_socketio import SocketIO, emit
 from analysis.analyzer import StockAnalyzer
 from data.usa_news import USANewsAnalyzer
 from data.data_collector import MarketDataCollector
@@ -30,6 +31,9 @@ app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.secret_key = FLASK_SECRET_KEY
 app.config['JSON_SORT_KEYS'] = False
+
+# ─── WebSocket Setup ────────────────────────────────────────────────────────────
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # ─── Visit Counter ──────────────────────────────────────────────────────────────
 import os as _os
@@ -1284,5 +1288,88 @@ def _format_chat_response(message: str, result: dict) -> str:
     return response
 
 
+# ─── WebSocket Events ───────────────────────────────────────────────────────────
+import threading
+import time as _time
+
+_ws_streaming = False
+
+def _stream_live_data():
+    """Background thread that pushes live prices via WebSocket every 3 seconds."""
+    global _ws_streaming
+    _ws_streaming = True
+    while _ws_streaming:
+        try:
+            data = nse_live.get_live_prices()
+            if "error" not in data:
+                socketio.emit('live_prices', _sanitize_for_json(data), namespace='/')
+        except Exception:
+            pass
+        _time.sleep(3)
+
+
+@socketio.on('connect')
+def handle_connect():
+    """Client connected — start streaming if not already."""
+    global _ws_streaming
+    if not _ws_streaming:
+        thread = threading.Thread(target=_stream_live_data, daemon=True)
+        thread.start()
+    # Send immediate data
+    try:
+        data = nse_live.get_live_prices()
+        if "error" not in data:
+            emit('live_prices', _sanitize_for_json(data))
+    except Exception:
+        pass
+
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    pass
+
+
+@socketio.on('request_data')
+def handle_request_data(msg):
+    """Client requests specific data (two-way communication)."""
+    action = msg.get('action', '')
+    symbol = msg.get('symbol', 'NIFTY')
+
+    if action == 'live_prices':
+        data = nse_live.get_live_prices()
+        emit('live_prices', _sanitize_for_json(data))
+
+    elif action == 'intraday_signal':
+        try:
+            df = data_collector.get_stock_data(symbol, period="6mo")
+            import ta as ta_lib
+            current_price = float(df["close"].iloc[-1])
+            prev_h = float(df["high"].iloc[-2])
+            prev_l = float(df["low"].iloc[-2])
+            prev_c = float(df["close"].iloc[-2])
+            pivot = (prev_h + prev_l + prev_c) / 3
+            r1 = 2 * pivot - prev_l
+            s1 = 2 * pivot - prev_h
+            pivots = {"pivot": round(pivot, 2), "r1": round(r1, 2), "s1": round(s1, 2)}
+            rsi = float(ta_lib.momentum.RSIIndicator(close=df["close"], window=14).rsi().iloc[-1])
+            macd_ind = ta_lib.trend.MACD(close=df["close"])
+            macd_val = float(macd_ind.macd().iloc[-1])
+            macd_sig = float(macd_ind.macd_signal().iloc[-1])
+            indicators = {"rsi": round(rsi, 2), "macd_crossover": "Bullish" if macd_val > macd_sig else "Bearish"}
+            signal = intraday_gen.generate_option_intraday(symbol, current_price, pivots, indicators)
+            emit('signal_data', _sanitize_for_json(signal))
+        except Exception as e:
+            emit('signal_data', {"error": str(e)})
+
+    elif action == 'quantedge':
+        try:
+            df = data_collector.get_stock_data(symbol, period="3mo")
+            spot = float(df["close"].iloc[-1])
+            signals = quantedge.generate_signals(spot, symbol, df)
+            emit('quantedge_data', _sanitize_for_json(signals))
+        except Exception as e:
+            emit('quantedge_data', {"error": str(e)})
+
+
 if __name__ == "__main__":
-    app.run(debug=FLASK_DEBUG, port=FLASK_PORT, host="0.0.0.0")
+    socketio.run(app, debug=FLASK_DEBUG, port=FLASK_PORT, host="0.0.0.0", allow_unsafe_werkzeug=True)

@@ -1834,18 +1834,25 @@ function renderOrderHistory() {
     updateClock();
 })();
 
-// ─── Live Price Stream (SSE - every 3 seconds) ────────────────────────
+// ─── Live Price Stream (WebSocket - real-time) ────────────────────────
 (function() {
     var refreshCount = 0;
-    var evtSource = null;
+    var socket = null;
 
-    function connectStream() {
-        evtSource = new EventSource('/api/live-stream');
+    function connectWebSocket() {
+        // Load Socket.IO client
+        var script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js';
+        script.onload = function() {
+            socket = io();
 
-        evtSource.onmessage = function(event) {
-            try {
-                var data = JSON.parse(event.data);
-                if (data.error) return;
+            socket.on('connect', function() {
+                var statusEl = document.getElementById('tickerStatus');
+                if (statusEl) { statusEl.textContent = '🟢 WebSocket Connected'; statusEl.style.color = '#22c55e'; }
+            });
+
+            socket.on('live_prices', function(data) {
+                if (!data || data.error) return;
                 refreshCount++;
                 if (data.NIFTY) updateTicker('NIFTY', data.NIFTY, 'tickerNifty');
                 if (data.BANKNIFTY) updateTicker('BANKNIFTY', data.BANKNIFTY, 'tickerBanknifty');
@@ -1854,19 +1861,17 @@ function renderOrderHistory() {
                 var broker = data.broker ? data.broker.split('(')[0].trim() : 'NSE';
                 var statusEl = document.getElementById('tickerStatus');
                 if (statusEl) {
-                    statusEl.textContent = mkt + ' ' + broker + ' • Live #' + refreshCount;
+                    statusEl.textContent = mkt + ' WS ' + broker + ' #' + refreshCount;
                     statusEl.style.color = data.market_status === 'Open' ? '#22c55e' : '#ef4444';
                 }
-            } catch(e) {}
-        };
+            });
 
-        evtSource.onerror = function() {
-            var statusEl = document.getElementById('tickerStatus');
-            if (statusEl) { statusEl.textContent = '🔴 Reconnecting...'; statusEl.style.color = '#ef4444'; }
-            evtSource.close();
-            // Reconnect after 5 seconds
-            setTimeout(connectStream, 5000);
+            socket.on('disconnect', function() {
+                var statusEl = document.getElementById('tickerStatus');
+                if (statusEl) { statusEl.textContent = '🔴 Reconnecting...'; statusEl.style.color = '#ef4444'; }
+            });
         };
+        document.head.appendChild(script);
     }
 
     function updateTicker(name, data, elId) {
@@ -1878,8 +1883,8 @@ function renderOrderHistory() {
         el.innerHTML = '<span>' + name + '</span><span style="color:' + color + ';font-weight:600;">' + data.price.toLocaleString() + ' ' + arrow + Math.abs(data.change_pct).toFixed(2) + '%</span>';
     }
 
-    // Start SSE stream after 1 second
-    setTimeout(connectStream, 1000);
+    // Start WebSocket connection
+    setTimeout(connectWebSocket, 500);
 })();
 
 document.getElementById('customStock').addEventListener('keypress',e=>{if(e.key==='Enter')runAnalysis();});
