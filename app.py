@@ -1382,10 +1382,43 @@ def handle_request_data(msg):
         data = nse_live.get_live_prices()
         emit('live_prices', _sanitize_for_json(data))
 
+    elif action == 'buy_sell_signals':
+        # Fetch signals for all 3 indices
+        results = {}
+        for idx in ['NIFTY', 'BANKNIFTY', 'SENSEX']:
+            try:
+                import ta as ta_lib
+                df = data_collector.get_stock_data(idx, period="6mo")
+                current_price = float(df["close"].iloc[-1])
+                prev_h = float(df["high"].iloc[-2])
+                prev_l = float(df["low"].iloc[-2])
+                prev_c = float(df["close"].iloc[-2])
+                pivot = (prev_h + prev_l + prev_c) / 3
+                r1 = 2 * pivot - prev_l
+                s1 = 2 * pivot - prev_h
+                pivots = {"pivot": round(pivot, 2), "r1": round(r1, 2), "s1": round(s1, 2)}
+                rsi = float(ta_lib.momentum.RSIIndicator(close=df["close"], window=14).rsi().iloc[-1])
+                macd_ind = ta_lib.trend.MACD(close=df["close"])
+                macd_val = float(macd_ind.macd().iloc[-1])
+                macd_sig = float(macd_ind.macd_signal().iloc[-1])
+                ema_9 = float(ta_lib.trend.EMAIndicator(close=df["close"], window=9).ema_indicator().iloc[-1])
+                ema_21 = float(ta_lib.trend.EMAIndicator(close=df["close"], window=21).ema_indicator().iloc[-1])
+                vol_sma = float(df["volume"].rolling(20).mean().iloc[-1])
+                vol_ratio = float(df["volume"].iloc[-1]) / vol_sma if vol_sma > 0 else 1
+                indicators = {"rsi": round(rsi, 2), "macd_crossover": "Bullish" if macd_val > macd_sig else "Bearish", "volume_ratio": round(vol_ratio, 2), "ema_9": round(ema_9, 2), "ema_21": round(ema_21, 2)}
+                signal = intraday_gen.generate_option_intraday(idx, current_price, pivots, indicators)
+                signal["indicators"] = indicators
+                step = 100 if idx == "BANKNIFTY" else 50
+                signal["atm_strike"] = round(current_price / step) * step
+                results[idx] = signal
+            except Exception as e:
+                results[idx] = {"error": str(e)}
+        emit('buy_sell_data', _sanitize_for_json(results))
+
     elif action == 'intraday_signal':
         try:
-            df = data_collector.get_stock_data(symbol, period="6mo")
             import ta as ta_lib
+            df = data_collector.get_stock_data(symbol, period="6mo")
             current_price = float(df["close"].iloc[-1])
             prev_h = float(df["high"].iloc[-2])
             prev_l = float(df["low"].iloc[-2])
