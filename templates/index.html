@@ -182,7 +182,7 @@
             <div id="tickerStatus" style="text-align:center;padding:3px 0;font-size:0.6rem;color:#4b5563;">⏳ Loading...</div>
         </div>
         <div class="sidebar-section">Analysis</div>
-        <div class="sidebar-item active" onclick="switchTab('overview')"><span class="icon">📊</span>Overview</div>
+        <div class="sidebar-item" onclick="switchTab('overview')"><span class="icon">📊</span>Overview</div>
         <div class="sidebar-item" onclick="switchTab('chart')"><span class="icon">📈</span>Chart</div>
         <div class="sidebar-item" onclick="switchTab('technical')"><span class="icon">🔧</span>Technical</div>
         <div class="sidebar-section">Trading</div>
@@ -196,7 +196,7 @@
         <div class="sidebar-item" onclick="switchTab('prediction')"><span class="icon">🤖</span>AI Prediction</div>
         <div class="sidebar-item" onclick="switchTab('bullbear')"><span class="icon">🎯</span>Bull/Bear</div>
         <div class="sidebar-item" onclick="switchTab('livetrade')" style="border-left-color:#22c55e;"><span class="icon">🔥</span>Live Trade</div>
-        <div class="sidebar-item" onclick="switchTab('buysell')" style="border-left-color:#22c55e;"><span class="icon">💹</span>Buy-Sell</div>
+        <div class="sidebar-item active" onclick="switchTab('buysell')" style="border-left-color:#22c55e;"><span class="icon">💹</span>Buy-Sell</div>
         <div class="sidebar-item" onclick="switchTab('quantedge')"><span class="icon">⚡</span>QuantEdge</div>
         <div class="sidebar-item" onclick="switchTab('nifty50')"><span class="icon">🏛️</span>Nifty 50</div>
         <div class="sidebar-section">Smart AI</div>
@@ -212,7 +212,7 @@
         <div class="error-msg" id="errorMsg"></div>
 
         <!-- Overview Tab -->
-        <div class="tab-content active" id="tab-overview">
+        <div class="tab-content" id="tab-overview">
             <div id="signalBanner" class="signal-banner hold" style="display:none;">
                 <div class="left"><h2 id="stockName">-</h2><p id="priceText">Select a stock to begin</p></div>
                 <div class="right"><div class="rec hold" id="rec">-</div><p style="font-size:0.75rem;color:#9ca3af;" id="trendText"></p></div>
@@ -399,12 +399,12 @@
         </div>
 
         <!-- Buy-Sell Trading Panel -->
-        <div class="tab-content" id="tab-buysell">
+        <div class="tab-content active" id="tab-buysell">
             <div class="card">
                 <h3>💹 Buy-Sell Trading Panel — Live ATM Signals</h3>
-                <button class="btn btn-blue" onclick="loadBuySellData()" style="margin-bottom:12px;">🔄 Refresh Signals</button>
+                <button class="btn btn-blue" id="refreshBuySellBtn" onclick="loadBuySellData()" style="margin-bottom:12px;">🔄 Refresh Signals</button>
                 <div id="buySellLivePrices" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;"></div>
-                <div id="buySellPanel"><p style="color:#6b7280;font-size:0.8rem;">Click Refresh or use 💹 Buy-Sell button to load live signals.</p></div>
+                <div id="buySellPanel"><p style="color:#6b7280;font-size:0.8rem;">Loading signals...</p></div>
             </div>
             <div class="card"><h3>📋 Order History</h3><div id="orderHistory"><p style="color:#6b7280;font-size:0.8rem;">No orders yet.</p></div></div>
         </div>
@@ -1879,14 +1879,15 @@ function renderOrderHistory() {
             socket.on('live_prices', function(data) {
                 if (!data || data.error) return;
                 refreshCount++;
+                lastWsUpdate = Date.now();
                 if (data.NIFTY) updateTicker('NIFTY', data.NIFTY, 'tickerNifty');
                 if (data.BANKNIFTY) updateTicker('BANKNIFTY', data.BANKNIFTY, 'tickerBanknifty');
                 if (data.SENSEX) updateTicker('SENSEX', data.SENSEX, 'tickerSensex');
                 var mkt = data.market_status === 'Open' ? '🟢' : '🔴';
-                var broker = data.broker ? data.broker.split('(')[0].trim() : 'NSE';
+                var src = data.source || 'WS';
                 var statusEl = document.getElementById('tickerStatus');
                 if (statusEl) {
-                    statusEl.textContent = mkt + ' WS ' + broker + ' #' + refreshCount;
+                    statusEl.textContent = mkt + ' ' + src + ' #' + refreshCount;
                     statusEl.style.color = data.market_status === 'Open' ? '#22c55e' : '#ef4444';
                 }
             });
@@ -1908,8 +1909,32 @@ function renderOrderHistory() {
         el.innerHTML = '<span>' + name + '</span><span style="color:' + color + ';font-weight:600;">' + data.price.toLocaleString() + ' ' + arrow + Math.abs(data.change_pct).toFixed(2) + '%</span>';
     }
 
-    // Start WebSocket connection
+    // Start WebSocket connection with polling fallback
     setTimeout(connectWebSocket, 500);
+
+    // Polling fallback — activates if WebSocket fails for 15 seconds
+    var pollInterval = null;
+    var lastWsUpdate = Date.now();
+
+    function startPollingFallback() {
+        if (pollInterval) return;
+        pollInterval = setInterval(function() {
+            // Only poll if WebSocket hasn't updated in 15 seconds
+            if (Date.now() - lastWsUpdate > 15000) {
+                fetch('/api/live-prices').then(function(r){return r.json()}).then(function(data) {
+                    if (!data || data.error) return;
+                    refreshCount++;
+                    data.source = 'Polling';
+                    if (data.NIFTY) updateTicker('NIFTY', data.NIFTY, 'tickerNifty');
+                    if (data.BANKNIFTY) updateTicker('BANKNIFTY', data.BANKNIFTY, 'tickerBanknifty');
+                    if (data.SENSEX) updateTicker('SENSEX', data.SENSEX, 'tickerSensex');
+                    var statusEl = document.getElementById('tickerStatus');
+                    if (statusEl) { statusEl.textContent = '🟡 Polling #' + refreshCount; statusEl.style.color = '#eab308'; }
+                }).catch(function(){});
+            }
+        }, 15000);
+    }
+    setTimeout(startPollingFallback, 20000);
 })();
 
 // Nifty 50 Stocks
@@ -1968,6 +1993,18 @@ function loadStockDetail(symbol) {
         el.innerHTML = html;
     }).catch(function(e) { el.innerHTML = '<p class="red">Error: ' + (e.message||e) + '</p>'; });
 }
+
+// Auto-load Buy-Sell data when page finishes loading
+window.addEventListener('load', function() {
+    setTimeout(function() {
+        if (typeof loadBuySellData === 'function') {
+            var panel = document.getElementById('buySellPanel');
+            if (panel && panel.textContent.indexOf('Loading') >= 0) {
+                loadBuySellData();
+            }
+        }
+    }, 3000);
+});
 </script>
 </body>
 </html>

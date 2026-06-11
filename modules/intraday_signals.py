@@ -111,6 +111,8 @@ class IntradaySignalGenerator:
             "confidence": confidence,
             "score": round(score, 1),
             "reasons": reasons,
+            "timestamp": __import__('datetime').datetime.now().strftime("%Y-%m-%dT%H:%M:%S+05:30"),
+            "source": "WebSocket" if False else "REST",
         }
 
     def generate_option_intraday(self, index: str, current_price: float,

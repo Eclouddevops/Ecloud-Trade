@@ -1345,6 +1345,8 @@ def _stream_live_data():
         try:
             data = nse_live.get_live_prices()
             if "error" not in data:
+                data["stream_timestamp"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S+05:30")
+                data["source"] = "WebSocket"
                 socketio.emit('live_prices', _sanitize_for_json(data), namespace='/')
         except Exception:
             pass
