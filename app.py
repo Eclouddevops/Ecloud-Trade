@@ -24,6 +24,7 @@ from modules.ai_decision_engine import AIDecisionEngine
 from modules.broker_adapters import BrokerManager
 from modules.nse_live import NSELiveData
 from modules.quantedge import QuantEdgeEngine
+from modules.dhan_websocket import DhanWebSocketFeed
 from werkzeug.middleware.proxy_fix import ProxyFix
 from config.settings import FLASK_SECRET_KEY, FLASK_DEBUG, FLASK_PORT, SAMPLE_STOCKS
 
@@ -102,6 +103,14 @@ ai_engine = AIDecisionEngine()
 broker_mgr = BrokerManager()
 nse_live = NSELiveData()
 quantedge = QuantEdgeEngine()
+dhan_feed = DhanWebSocketFeed()
+
+# Start Dhan WebSocket only if credentials exist (non-blocking)
+if dhan_feed.is_configured:
+    try:
+        dhan_feed.start()
+    except Exception:
+        pass
 
 # Store recent analyses for chatbot context
 _chat_analysis_cache = {}
@@ -169,6 +178,29 @@ def list_stocks():
 def health_check():
     """Health check endpoint."""
     return jsonify({"status": "healthy", "service": "Ecloud-Trade Market Analyzer"})
+
+
+@app.route("/api/expiry-dates")
+def expiry_dates():
+    """Get next weekly expiry dates for all indices."""
+    from datetime import timedelta
+    today = datetime.now().date()
+
+    def next_expiry(target_day):
+        days_ahead = target_day - today.weekday()
+        if days_ahead < 0:
+            days_ahead += 7
+        elif days_ahead == 0 and datetime.now().hour >= 15:
+            days_ahead = 7
+        exp = today + timedelta(days=days_ahead)
+        return exp.strftime("%d %b %Y (%A)")
+
+    return jsonify({
+        "NIFTY": next_expiry(3),       # Thursday
+        "BANKNIFTY": next_expiry(2),   # Wednesday
+        "SENSEX": next_expiry(4),      # Friday
+        "FINNIFTY": next_expiry(1),    # Tuesday
+    })
 
 
 @app.route("/api/usa-news")
@@ -368,7 +400,7 @@ def intraday_signal(symbol: str):
     try:
         symbol = symbol.upper()
         is_index = symbol in ("NIFTY", "NIFTY50", "BANKNIFTY", "SENSEX", "FINNIFTY")
-        df = data_collector.get_stock_data(symbol, period="6mo")
+        df = data_collector.get_stock_data(symbol, period="3mo")
 
         import ta as ta_lib
         current_price = df["close"].iloc[-1]
@@ -1343,7 +1375,15 @@ def _stream_live_data():
     _ws_streaming = True
     while _ws_streaming:
         try:
-            data = nse_live.get_live_prices()
+            # Use Dhan WebSocket if connected (fastest)
+            if dhan_feed.is_connected:
+                data = dhan_feed.get_latest()
+                data["market_status"] = "Open" if dhan_feed.is_connected else "Unknown"
+                data["broker"] = "Dhan WebSocket (Real-time)"
+            else:
+                # Fallback to NSE India
+                data = nse_live.get_live_prices()
+
             if "error" not in data:
                 data["stream_timestamp"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S+05:30")
                 data["source"] = "WebSocket"
